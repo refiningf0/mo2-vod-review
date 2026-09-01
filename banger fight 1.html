@@ -142,32 +142,53 @@
     padding:7px 10px;font-size:.78rem;white-space:nowrap;z-index:5;
     transform:translate(-50%,-100%);box-shadow:0 10px 30px -12px #000;
   }
-  .rangewrap{position:relative;height:26px;margin-top:10px;}
+  .rangewrap{position:relative;height:30px;margin-top:12px;}
+  /* Without a visible rail the two handles float with nothing to hold, and it
+     reads as decoration rather than a control. */
+  .rail{
+    position:absolute;left:0;right:0;top:12px;height:6px;border-radius:999px;
+    background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px var(--line);
+  }
+  .sel{
+    position:absolute;top:0;bottom:0;border-radius:999px;
+    background:linear-gradient(90deg,rgba(109,140,245,.55),rgba(109,140,245,.75));
+  }
   .rangewrap input{
-    position:absolute;left:0;top:0;width:100%;height:26px;margin:0;padding:0;
+    position:absolute;left:0;top:0;width:100%;height:30px;margin:0;padding:0;
     background:none;pointer-events:none;-webkit-appearance:none;appearance:none;
   }
   .rangewrap input:focus{outline:none;}
-  .rangewrap input::-webkit-slider-runnable-track{height:26px;background:none;}
-  .rangewrap input::-moz-range-track{height:26px;background:none;}
+  .rangewrap input::-webkit-slider-runnable-track{height:30px;background:none;}
+  .rangewrap input::-moz-range-track{height:30px;background:none;}
   .rangewrap input::-webkit-slider-thumb{
     -webkit-appearance:none;pointer-events:auto;cursor:ew-resize;
-    width:13px;height:22px;border-radius:5px;margin-top:2px;
-    background:linear-gradient(180deg,#9fb4fb,var(--accent));
-    border:2px solid var(--bg);box-shadow:0 0 14px rgba(109,140,245,.45);
+    width:15px;height:26px;border-radius:6px;margin-top:2px;
+    background:
+      linear-gradient(90deg,transparent 5px,rgba(0,0,0,.35) 5px 6px,transparent 6px,
+                      transparent 9px,rgba(0,0,0,.35) 9px 10px,transparent 10px),
+      linear-gradient(180deg,#9fb4fb,var(--accent));
+    border:1.5px solid #0b0d11;box-shadow:0 2px 8px -2px rgba(0,0,0,.8);
   }
   .rangewrap input::-moz-range-thumb{
-    pointer-events:auto;cursor:ew-resize;width:11px;height:20px;border-radius:5px;
-    background:var(--accent);border:2px solid var(--bg);
+    pointer-events:auto;cursor:ew-resize;width:13px;height:24px;border-radius:6px;
+    background:var(--accent);border:1.5px solid #0b0d11;
   }
-  .scrub{display:flex;justify-content:space-between;align-items:center;
-         color:var(--soft);font-size:.73rem;margin-top:4px;font-variant-numeric:tabular-nums;}
-  .scrub .now{color:var(--ink);}
+  .rangewrap input::-webkit-slider-thumb:hover{filter:brightness(1.15);}
+  .scrub{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    font-size:.74rem;margin-top:6px;font-variant-numeric:tabular-nums;
+  }
+  .scrub .edge{color:var(--soft);}
+  .scrub .now{
+    display:inline-flex;align-items:center;gap:8px;color:var(--soft);
+  }
+  .scrub .now.set{color:var(--ink);}
+  .scrub .now b{color:var(--accent);font-weight:650;}
   .scrub button{
     background:none;border:1px solid var(--line-2);color:var(--mid);border-radius:7px;
-    font:inherit;font-size:.71rem;padding:3px 10px;cursor:pointer;margin-left:10px;
+    font:inherit;font-size:.71rem;padding:3px 9px;cursor:pointer;
   }
-  .scrub button:hover{border-color:var(--accent-dim);color:var(--accent);}
+  .scrub button:hover{border-color:var(--accent-dim);color:var(--ink);}
 
   /* ---- scoreboard ---- */
   .filter{
@@ -185,6 +206,25 @@
     background:none;border:none;color:var(--accent);font:inherit;font-size:.75rem;
     cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;
   }
+
+  /* Fifteen names pushed the rest of the report off the screen. Five is
+     enough to see the shape of the fight; the rest are a scroll away. */
+  .opplist{
+    max-height:296px;overflow-y:auto;overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 26px),transparent);
+            mask-image:linear-gradient(180deg,#000 calc(100% - 26px),transparent);
+    padding-right:4px;
+  }
+  .opplist.short{max-height:none;-webkit-mask-image:none;mask-image:none;}
+  .opplist::-webkit-scrollbar{width:8px;}
+  .opplist::-webkit-scrollbar-track{background:transparent;}
+  .opplist::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.13);border-radius:99px;border:2px solid transparent;
+    background-clip:content-box;
+  }
+  .opplist::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22);background-clip:content-box;}
+  .opplist{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;}
+  .listnote{color:var(--soft);font-size:.72rem;margin:10px 0 0;}
 
   .opp{border-top:1px solid var(--line);}
   .opp:first-child{border-top:none;}
@@ -350,13 +390,16 @@
             <div class="tip" id="tip"></div>
           </div>
           <div class="rangewrap">
-            <input type="range" id="r0" min="0" max="100" value="0">
-            <input type="range" id="r1" min="0" max="100" value="100">
+            <div class="rail"><div class="sel" id="sel"></div></div>
+            <input type="range" id="r0" min="0" max="100" value="0"
+                   aria-label="Start of the stretch to show">
+            <input type="range" id="r1" min="0" max="100" value="100"
+                   aria-label="End of the stretch to show">
           </div>
           <div class="scrub">
-            <span>0:00</span>
-            <span><span class="now" id="tnow"></span><button id="reset">whole fight</button></span>
-            <span id="tend">0:00</span>
+            <span class="edge">0:00</span>
+            <span class="now" id="tnow"></span>
+            <span class="edge" id="tend">0:00</span>
           </div>
         </div>
       </div>
@@ -366,7 +409,8 @@
       <h2>Who you fought</h2>
       <p class="hint">Click a name to pick them out on the chart and open their hits. The &times; leaves someone out of the totals.</p>
       <div class="exsum" id="exsum"></div>
-      <div id="opps"></div>
+      <div class="opplist" id="opps"></div>
+      <p class="listnote" id="listnote"></p>
     </div>
 
     <div class="card">
@@ -472,10 +516,6 @@ function start(){
   };
   r0.addEventListener('input', slide);
   r1.addEventListener('input', slide);
-  document.getElementById('reset').addEventListener('click', () => {
-    r0.value = 0; r1.value = DUR; slide();
-  });
-
   timeline(); render();
 }
 
@@ -551,9 +591,23 @@ function dimTimeline(){
   });
 
   const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
-  document.getElementById('tnow').textContent =
-    whole ? 'whole fight' : `${fmt(T0)} – ${fmt(T1)}`;
-  document.getElementById('reset').style.visibility = whole ? 'hidden' : 'visible';
+  const sel = document.getElementById('sel');
+  if (sel){
+    sel.style.left  = (T0 / DUR) * 100 + '%';
+    sel.style.width = ((T1 - T0) / DUR) * 100 + '%';
+  }
+  // Say what the control does while it is untouched, and what it is doing
+  // once it has been -- "whole fight" alone explained neither.
+  const now = document.getElementById('tnow');
+  now.classList.toggle('set', !whole);
+  now.innerHTML = whole
+    ? 'Drag either handle to zoom into part of the fight'
+    : `Showing <b>${fmt(T0)} – ${fmt(T1)}</b><button id="reset">whole fight</button>`;
+  const resetBtn = document.getElementById('reset');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    const a = document.getElementById('r0'), b = document.getElementById('r1');
+    a.value = 0; b.value = DUR; a.dispatchEvent(new Event('input'));
+  });
 }
 
 /* ---------------- timeline ---------------- */
@@ -727,6 +781,11 @@ function opponents(){
     </div>`;
   }).join('');
 
+  el.classList.toggle('short', names.length <= 5);
+  const note = document.getElementById('listnote');
+  if (note) note.textContent = names.length > 5
+    ? `Showing 5 of ${names.length} \u2014 scroll the list for the rest.` : '';
+
   el.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
     const n = b.dataset.x;
     EXCLUDED.has(n) ? EXCLUDED.delete(n) : EXCLUDED.add(n);
@@ -742,6 +801,7 @@ function opponents(){
 
     // Opening a name focuses it; closing it again gives the whole fight back.
     setFocus(open ? FOCUS : n);
+    if (!open) d.scrollIntoView({block: 'nearest'});
   }));
 
   // A rebuild throws the rows away, so put the marker back on the focused one.
