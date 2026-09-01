@@ -8,11 +8,11 @@
   /* Dark, gold-trimmed, numbers first -- a post-match screen rather than a
      spreadsheet. Everything is CSS: the report has to open with no network. */
   :root{
-    --bg:#0c0906; --panel:#191308; --panel-2:#221909;
-    --line:rgba(224,195,145,.10); --line-2:rgba(224,195,145,.20);
-    --ink:#f6ecd9; --mid:#bcab8d; --soft:#8a7a5f;
-    --sand:#e6cb98; --gold:#d4a35f; --gold-dim:rgba(212,163,95,.5);
-    --out:#7fc96b; --in:#e2603f; --magic:#c39ae8; --heal:#6fc7d4;
+    --bg:#0b0d11; --panel:#14171d; --panel-2:#1a1e26;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+    --ink:#e9edf3; --mid:#98a2b0; --soft:#687382;
+    --accent:#6d8cf5; --accent-dim:rgba(109,140,245,.45);
+    --out:#3fbf78; --in:#ef5a52; --magic:#a78bfa; --heal:#43b8e0;
     --r:14px;
   }
   *{box-sizing:border-box;}
@@ -20,32 +20,24 @@
   body{
     margin:0;color:var(--ink);
     background:
-      radial-gradient(1100px 520px at 50% -180px, rgba(230,203,152,.16), transparent 68%),
-      radial-gradient(760px 420px at 84% 12%, rgba(226,96,63,.07), transparent 62%),
-      linear-gradient(180deg,#100b06,var(--bg) 40%);
+      radial-gradient(1000px 480px at 50% -200px, rgba(109,140,245,.09), transparent 70%),
+      var(--bg);
     background-attachment:fixed;
     font:15px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  /* A fine grain over everything -- sand in the air, and it stops the flat
-     panels reading as a spreadsheet. Inline so the report still works offline. */
-  body::before{
-    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.30;
-    mix-blend-mode:overlay;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
-  }
-  .wrap{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:44px 20px 120px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:44px 20px 120px;}
   .num{font-variant-numeric:tabular-nums;}
 
   /* ---- header ---- */
   .eyebrow{
     font-size:.64rem;letter-spacing:.28em;text-transform:uppercase;
-    color:var(--gold);opacity:.85;margin:0 0 10px;font-weight:600;
+    color:var(--soft);margin:0 0 10px;font-weight:600;
   }
   h1{
     font-size:clamp(1.5rem,3.4vw,2.15rem);margin:0 0 12px;line-height:1.15;
     letter-spacing:-.02em;font-weight:700;
-    background:linear-gradient(180deg,#fdf6e8,#c9b48c);
+    background:linear-gradient(180deg,#ffffff,#aab6c6);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     overflow-wrap:anywhere;
   }
@@ -63,7 +55,7 @@
     background:linear-gradient(180deg,var(--panel),rgba(17,22,32,.4));
     transition:border-color .15s,background .15s;
   }
-  .drop:hover,.drop.over{border-color:var(--gold-dim);background:var(--panel-2);}
+  .drop:hover,.drop.over{border-color:var(--accent-dim);background:var(--panel-2);}
   .drop input{display:none;}
   .drop b{color:var(--ink);display:block;margin-bottom:5px;font-size:1.1rem;}
 
@@ -76,7 +68,7 @@
   h2{
     display:flex;align-items:center;gap:10px;
     font-size:.68rem;text-transform:uppercase;letter-spacing:.16em;
-    color:var(--gold);font-weight:700;margin:0 0 16px;
+    color:var(--mid);font-weight:600;margin:0 0 16px;
   }
   h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
 
@@ -91,7 +83,7 @@
   .stat::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;opacity:.9;}
   .stat.dealt::before{background:linear-gradient(90deg,var(--out),transparent);}
   .stat.taken::before{background:linear-gradient(90deg,var(--in),transparent);}
-  .stat.net::before{background:linear-gradient(90deg,var(--gold),transparent);}
+  .stat.net::before{background:linear-gradient(90deg,var(--accent),transparent);}
   .stat .k{
     display:block;font-size:.63rem;text-transform:uppercase;letter-spacing:.16em;
     color:var(--soft);margin-bottom:10px;font-weight:600;
@@ -100,8 +92,8 @@
     display:block;font-size:clamp(1.9rem,4.6vw,2.6rem);font-weight:750;line-height:1;
     letter-spacing:-.03em;font-variant-numeric:tabular-nums;
   }
-  .stat.dealt b{color:var(--out);text-shadow:0 0 34px rgba(127,201,107,.28);}
-  .stat.taken b{color:var(--in);text-shadow:0 0 34px rgba(226,96,63,.24);}
+  .stat.dealt b{color:var(--out);text-shadow:0 0 34px rgba(63,191,120,.28);}
+  .stat.taken b{color:var(--in);text-shadow:0 0 34px rgba(239,90,82,.24);}
   .stat.net b{color:var(--ink);}
   .stat .sub{display:block;font-size:.74rem;color:var(--soft);margin-top:9px;}
 
@@ -110,7 +102,7 @@
   .tl svg{display:block;width:100%;height:158px;overflow:visible;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
-    background:rgba(16,11,6,.97);border:1px solid var(--line-2);border-radius:9px;
+    background:rgba(11,13,17,.97);border:1px solid var(--line-2);border-radius:9px;
     padding:7px 10px;font-size:.78rem;white-space:nowrap;z-index:5;
     transform:translate(-50%,-100%);box-shadow:0 10px 30px -12px #000;
   }
@@ -125,12 +117,12 @@
   .rangewrap input::-webkit-slider-thumb{
     -webkit-appearance:none;pointer-events:auto;cursor:ew-resize;
     width:13px;height:22px;border-radius:5px;margin-top:2px;
-    background:linear-gradient(180deg,#f4dcae,var(--gold));
-    border:2px solid var(--bg);box-shadow:0 0 14px rgba(212,163,95,.45);
+    background:linear-gradient(180deg,#9fb4fb,var(--accent));
+    border:2px solid var(--bg);box-shadow:0 0 14px rgba(109,140,245,.45);
   }
   .rangewrap input::-moz-range-thumb{
     pointer-events:auto;cursor:ew-resize;width:11px;height:20px;border-radius:5px;
-    background:var(--gold);border:2px solid var(--bg);
+    background:var(--accent);border:2px solid var(--bg);
   }
   .scrub{display:flex;justify-content:space-between;align-items:center;
          color:var(--soft);font-size:.73rem;margin-top:4px;font-variant-numeric:tabular-nums;}
@@ -139,7 +131,7 @@
     background:none;border:1px solid var(--line-2);color:var(--mid);border-radius:7px;
     font:inherit;font-size:.71rem;padding:3px 10px;cursor:pointer;margin-left:10px;
   }
-  .scrub button:hover{border-color:var(--gold-dim);color:var(--gold);}
+  .scrub button:hover{border-color:var(--accent-dim);color:var(--accent);}
 
   /* ---- scoreboard ---- */
   .filter{
@@ -147,14 +139,14 @@
     border-radius:10px;padding:10px 13px;font:inherit;font-size:.88rem;margin-bottom:8px;
   }
   .filter::placeholder{color:var(--soft);}
-  .filter:focus{outline:none;border-color:var(--gold-dim);background:rgba(0,0,0,.4);}
+  .filter:focus{outline:none;border-color:var(--accent-dim);background:rgba(0,0,0,.4);}
   .hint{color:var(--soft);font-size:.72rem;margin:0 0 12px;}
   .exsum{
     display:flex;justify-content:space-between;align-items:center;gap:10px;
     color:var(--mid);font-size:.75rem;margin:0 0 10px;
   }
   .exsum button{
-    background:none;border:none;color:var(--gold);font:inherit;font-size:.75rem;
+    background:none;border:none;color:var(--accent);font:inherit;font-size:.75rem;
     cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;
   }
 
@@ -171,8 +163,8 @@
   .oppbtn:hover{background:rgba(255,255,255,.035);}
   .rank{font-size:.78rem;color:var(--soft);font-variant-numeric:tabular-nums;text-align:right;}
   .badge{
-    width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 2px 6px -2px #000;
+    width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+    box-shadow:0 1px 3px -1px rgba(0,0,0,.5);
   }
   .badge svg{display:block;}
   .oppname{font-weight:650;font-size:.92rem;min-width:0;}
@@ -180,20 +172,19 @@
   /* Someone who took a real bite out of you should be findable at a glance in
      a fifteen-name list, without reading a single number. */
   .tag{
-    display:inline-flex;align-items:center;gap:4px;vertical-align:2px;margin-left:7px;
-    font-size:.6rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-    border-radius:999px;padding:2px 7px 2px 5px;
+    display:inline-flex;align-items:center;vertical-align:-3px;margin-left:7px;
+    border-radius:8px;padding:2px;
   }
   .tag svg{display:block;}
-  .tag.danger{color:var(--in);background:rgba(226,96,63,.14);border:1px solid rgba(226,96,63,.4);}
-  .tag.hard{color:var(--gold);background:rgba(212,163,95,.13);border:1px solid var(--gold-dim);}
+  .tag.danger{color:var(--in);background:rgba(239,90,82,.14);border:1px solid rgba(239,90,82,.4);}
+  .tag.hard{color:var(--accent);background:rgba(109,140,245,.13);border:1px solid var(--accent-dim);}
   .opp.off .tag{opacity:.3;}
   .bars{display:flex;align-items:center;height:24px;}
   .half{flex:1;display:flex;height:9px;}
   .half.l{justify-content:flex-end;}
   .half .fill{border-radius:999px;min-width:0;transition:opacity .12s;}
-  .half.l .fill{background:linear-gradient(270deg,var(--in),rgba(226,96,63,.45));}
-  .half.r .fill{background:linear-gradient(90deg,var(--out),rgba(127,201,107,.45));}
+  .half.l .fill{background:linear-gradient(270deg,var(--in),rgba(239,90,82,.45));}
+  .half.r .fill{background:linear-gradient(90deg,var(--out),rgba(63,191,120,.45));}
   .spine{width:1px;height:24px;background:var(--line-2);flex:none;}
   .oppnums{display:flex;justify-content:space-between;font-size:.86rem;
            font-variant-numeric:tabular-nums;font-weight:650;}
@@ -206,12 +197,12 @@
   }
   .opprow:hover .ex,.opp.off .ex{opacity:1;}
   .ex:hover{border-color:var(--line-2);color:var(--ink);background:rgba(255,255,255,.05);}
-  .ex:focus-visible{opacity:1;outline:2px solid var(--gold);outline-offset:1px;}
+  .ex:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px;}
   .opp.off .oppname,.opp.off .oppnums,.opp.off .badge{opacity:.3;}
   .opp.off .half .fill{opacity:.2;}
-  .opp.off .ex{color:var(--gold);}
-  .opp.focus{background:linear-gradient(90deg,rgba(212,163,95,.09),transparent);border-radius:12px;}
-  .opp.focus .oppname{color:var(--gold);}
+  .opp.off .ex{color:var(--accent);}
+  .opp.focus{background:linear-gradient(90deg,rgba(109,140,245,.09),transparent);border-radius:12px;}
+  .opp.focus .oppname{color:var(--accent);}
 
   .detail{padding:0 8px 18px 74px;}
   table{width:100%;border-collapse:collapse;font-size:.82rem;}
@@ -232,11 +223,11 @@
     padding:10px 14px;font-size:.79rem;color:var(--mid);
   }
   .part b{font-variant-numeric:tabular-nums;color:var(--ink);font-size:.92rem;font-weight:700;}
-  .part.main{background:linear-gradient(180deg,rgba(127,201,107,.12),rgba(127,201,107,.04));
-             border-color:rgba(127,201,107,.3);}
+  .part.main{background:linear-gradient(180deg,rgba(63,191,120,.12),rgba(63,191,120,.04));
+             border-color:rgba(63,191,120,.3);}
   .part.main b{color:var(--out);}
-  .part.parry{background:linear-gradient(180deg,rgba(226,96,63,.13),rgba(226,96,63,.04));
-              border-color:rgba(226,96,63,.34);}
+  .part.parry{background:linear-gradient(180deg,rgba(239,90,82,.13),rgba(239,90,82,.04));
+              border-color:rgba(239,90,82,.34);}
   .part.parry b{color:var(--in);}
   .part.handle{background:linear-gradient(180deg,rgba(251,146,60,.13),rgba(251,146,60,.04));
                border-color:rgba(251,146,60,.34);}
@@ -247,22 +238,22 @@
   /* Counter-reducing a hit is rare -- two of them across four fights -- so it
      gets the top row and is dressed to look like something you pulled off. */
   .part.trophy{
-    width:100%;justify-content:space-between;align-items:center;gap:16px;
-    padding:15px 20px;border-color:var(--gold);
+    align-items:center;gap:12px;
+    padding:15px 20px;border-color:var(--accent);
     background:
-      linear-gradient(135deg,rgba(212,163,95,.24),rgba(212,163,95,.07) 55%,transparent),
+      linear-gradient(135deg,rgba(109,140,245,.24),rgba(109,140,245,.07) 55%,transparent),
       var(--panel-2);
-    box-shadow:0 0 46px -14px rgba(212,163,95,.55), inset 0 1px 0 rgba(255,255,255,.09);
+    box-shadow:0 0 46px -14px rgba(109,140,245,.55), inset 0 1px 0 rgba(255,255,255,.09);
   }
   .part.trophy .lbl{
     display:flex;align-items:center;gap:9px;
-    font-size:.7rem;text-transform:uppercase;letter-spacing:.17em;
-    color:var(--gold);font-weight:700;
+    font-size:.72rem;text-transform:none;letter-spacing:.01em;
+    color:var(--accent);font-weight:700;
   }
   .part.trophy .lbl::before{content:"\25c6";font-size:.72rem;opacity:.9;}
   .part.trophy b{
-    font-size:1.9rem;line-height:1;color:var(--gold);
-    text-shadow:0 0 28px rgba(212,163,95,.65);
+    font-size:1.15rem;line-height:1;color:var(--accent);
+    text-shadow:0 0 28px rgba(109,140,245,.65);
   }
   .part.magic b{color:var(--magic);}
   /* Present but not achieved: still readable, no longer shouting. */
@@ -625,7 +616,7 @@ function opponents(){
       <div class="opprow">
       <button class="oppbtn" data-n="${esc(n)}" aria-expanded="false">
         <span class="rank num">${i + 1}</span>
-        <span class="badge" style="background:${tint(n)}">${mark(n)}</span>
+        <span class="badge" style="background:${tint(n)}">${mark()}</span>
         <span class="oppname">${esc(n)}${threat(d.taken, d.dealt)}<span class="hits">${hits} hit${hits===1?'':'s'}</span></span>
         <span class="bars">
           <span class="half l"><span class="fill" style="width:${(d.taken/peak)*100}%"></span></span>
@@ -673,58 +664,47 @@ function opponents(){
   }
 }
 
-// Eight marks drawn from what people actually swing at each other. Which one
-// a player gets is fixed by their name, so they carry the same mark in every
-// report you ever open.
-const MARKS = [
-  'M12 2.5 12 15M8.6 14.6h6.8M12 15.4v3.4M12 21.4a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4z', // sword
-  'M6.5 21 15 8M13 2.6c3.2.2 5.6 2.3 5.8 5.2-2.1 1.1-4 .9-5.1-.3-.9 2-2.7 2.5-4.2 1.6z',     // axe
-  'M12 2.2 14.4 7 12 9.4 9.6 7zM12 9.4V21',                                                   // spear
-  'M7 3.2c5.4 2.1 8.4 6.3 9.2 12.8M6.6 3.4 17 16.2M5.6 17.6l3.1-3.1',                         // bow
-  'M12 2.6 19 5.4v6.2c0 4-2.9 7.3-7 8.8-4.1-1.5-7-4.8-7-8.8V5.4z',                            // shield
-  'M12 4.4V13M9.4 12.6h5.2M12 13.4v5.4',                                                      // dagger
-  'M9.4 21 14 15.4M12.4 3.4a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 0 1 0-8.8zM12.4 1.6v1.8M12.4 12.2v1.8M7.8 7.8H6M18.8 7.8H17', // mace
-  'M5.4 4.2h9.2v4.4H5.4zM10 8.6 12.6 21',                                                     // hammer
-];
+// Placeholder avatars, in the spirit of a chat app's default: a flat colour
+// and a plain bust. Fixed by the name so a player looks the same every report.
+const AVATAR_BG = ['#5865f2', '#747f8d', '#3ba55c', '#faa81a', '#ed4245', '#eb459e'];
 
 function nameHash(name){
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return h;
 }
-// Hues kept in the desert's range so fifteen badges still look like one set.
 function tint(name){
-  const h = 24 + (nameHash(name) % 46);
-  const l = 52 + (nameHash(name + '!') % 18);
-  return `linear-gradient(145deg,hsl(${h} 46% ${l}%),hsl(${h - 12} 52% ${l - 16}%))`;
+  return AVATAR_BG[nameHash(name) % AVATAR_BG.length];
 }
-const SKULL = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" ' +
-  'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M12 2.6c4.3 0 7.4 3 7.4 7 0 2.6-1.2 4-2.4 5v3.2c0 1-.8 1.8-1.8 1.8H8.8c-1 0-1.8-.8-1.8-1.8v-3.2' +
-  'c-1.2-1-2.4-2.4-2.4-5 0-4 3.1-7 7.4-7z"/><circle cx="9.3" cy="10.4" r="1.5"/>' +
-  '<circle cx="14.7" cy="10.4" r="1.5"/></svg>';
+const SKULL = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M12 2.4c4.5 0 7.8 3.1 7.8 7.3 0 2.7-1.3 4.2-2.5 5.2v3.4c0 1-.9 1.9-1.9 1.9H8.6' +
+  'c-1 0-1.9-.9-1.9-1.9v-3.4c-1.2-1-2.5-2.5-2.5-5.2 0-4.2 3.3-7.3 7.8-7.3z"/>' +
+  '<circle cx="9.1" cy="10.4" r="1.6"/><circle cx="14.9" cy="10.4" r="1.6"/>' +
+  '<path d="M10.6 15.4v2.6M13.4 15.4v2.6"/></svg>';
 
-const BLADE = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" ' +
-  'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
-  '<path d="M12 2.6 12 15M8.8 14.6h6.4M12 15.4v3.6"/></svg>';
+const BLADE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M12 2.2 12 15M8.6 14.6h6.8M12 15.4v3.2"/>' +
+  '<circle cx="12" cy="20.4" r="1.6"/></svg>';
 
-// Thresholds, not rankings: 100 is roughly a third of a health bar, so it is
-// the point at which someone stopped being incidental to the fight.
-const HURT = 100;
+// One line, both ways: 150 is where someone stopped being incidental to the
+// fight. The glyph says which side of it they were on; the number is a
+// tooltip, because the row already carries it.
+const HURT = 150;
 
 function threat(dealtToYou, youDealt){
   if (dealtToYou >= HURT)
-    return `<span class="tag danger">${SKULL}${dealtToYou >= HURT * 2 ? 'deadly' : 'danger'}</span>`;
-  if (youDealt >= HURT * 2)
-    return `<span class="tag hard">${BLADE}punished</span>`;
+    return `<span class="tag danger" title="They put ${dealtToYou} through you">${SKULL}</span>`;
+  if (youDealt >= HURT)
+    return `<span class="tag hard" title="You put ${youDealt} through them">${BLADE}</span>`;
   return '';
 }
 
-function mark(name){
-  const d = MARKS[nameHash(name) % MARKS.length];
-  return `<svg viewBox="0 0 24 24" width="19" height="19" fill="none"
-    stroke="#1a1208" stroke-width="1.9" stroke-linecap="round"
-    stroke-linejoin="round"><path d="${d}"/></svg>`;
+function mark(){
+  return '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" aria-hidden="true">' +
+    '<circle cx="12" cy="8.6" r="4.1"/>' +
+    '<path d="M12 14.1c-3.9 0-7 2.4-7 5.4v1.2h14v-1.2c0-3-3.1-5.4-7-5.4z"/></svg>';
 }
 
 function table(rows){
@@ -786,7 +766,7 @@ function parts(){
     isHit(e) && e.dir === 'in' && (e.flags || []).includes('Counter Reduced'));
   const trophy =
     `<span class="part trophy${countered.length ? '' : ' zero'}">` +
-    `<span class="lbl">Counter reduce hits received</span>` +
+    `<span class="lbl">Counter reduced</span>` +
     `<b>${countered.length}</b></span>`;
 
   // Every category is shown whether or not it happened -- a row that vanishes
