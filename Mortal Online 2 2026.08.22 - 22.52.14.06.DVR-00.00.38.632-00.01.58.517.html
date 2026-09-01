@@ -73,6 +73,42 @@
   h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
 
   /* ---- headline numbers ---- */
+  /* The headline figures step back: they are the summary, not the story. */
+  .strip{display:flex;flex-wrap:wrap;gap:26px;margin:0 0 22px;padding:0 2px;}
+  .strip div{display:flex;align-items:baseline;gap:8px;}
+  .strip .k{font-size:.63rem;text-transform:uppercase;letter-spacing:.15em;color:var(--soft);font-weight:600;}
+  .strip b{font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+  .strip .sub{font-size:.72rem;color:var(--soft);}
+  .strip .dealt b{color:var(--out);} .strip .taken b{color:var(--in);}
+
+  .lead-grid{display:grid;grid-template-columns:186px 1fr;gap:22px;align-items:start;}
+  .picks h2{margin-bottom:12px;}
+  .chart h2{margin-bottom:14px;}
+  .focusnote{
+    margin-left:auto;font-size:.7rem;letter-spacing:0;text-transform:none;
+    color:var(--accent);font-weight:600;
+  }
+  .chart h2::after{display:none;}
+
+  .pick{
+    width:100%;display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:9px;
+    background:none;border:1px solid transparent;color:inherit;font:inherit;
+    padding:7px 8px;border-radius:9px;cursor:pointer;text-align:left;margin-bottom:2px;
+    transition:background .12s,border-color .12s;
+  }
+  .pick:hover{background:rgba(255,255,255,.04);}
+  .pick.on{background:rgba(109,140,245,.12);border-color:var(--accent-dim);}
+  .pick .av{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;}
+  .pick .av svg{width:15px;height:15px;}
+  .pick .nm{font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pick.on .nm{color:var(--accent);}
+  .pick .amt{font-size:.74rem;color:var(--soft);font-variant-numeric:tabular-nums;}
+  .picks .clear{
+    width:100%;margin-top:8px;background:none;border:1px solid var(--line);
+    color:var(--soft);border-radius:8px;font:inherit;font-size:.72rem;padding:6px;cursor:pointer;
+  }
+  .picks .clear:hover{border-color:var(--accent-dim);color:var(--ink);}
+
   .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
   .stat{
     position:relative;overflow:hidden;padding:18px 20px 16px;
@@ -99,7 +135,7 @@
 
   /* ---- timeline ---- */
   .tl{position:relative;}
-  .tl svg{display:block;width:100%;height:158px;overflow:visible;}
+  .tl svg{display:block;width:100%;height:210px;overflow:visible;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
     background:rgba(11,13,17,.97);border:1px solid var(--line-2);border-radius:9px;
@@ -270,8 +306,13 @@
 
   .empty{color:var(--soft);text-align:center;padding:38px 0;font-size:.9rem;}
 
+  @media(max-width:860px){
+    .lead-grid{grid-template-columns:1fr;}
+    .picks{order:2;}
+  }
   @media(max-width:760px){
     .totals{grid-template-columns:1fr;}
+    .strip{gap:16px;}
     .oppbtn{grid-template-columns:30px minmax(80px,1fr) 104px;gap:10px;}
     .rank,.bars{display:none;}
     .detail{padding-left:8px;}
@@ -294,29 +335,36 @@
   </label>
 
   <div id="app" class="hide">
-    <div class="card">
-      <h2>How the fight went</h2>
-      <div class="tl" id="tl">
-        <svg id="svg" preserveAspectRatio="none"></svg>
-        <div class="tip" id="tip"></div>
-      </div>
-      <div class="rangewrap">
-        <input type="range" id="r0" min="0" max="100" value="0">
-        <input type="range" id="r1" min="0" max="100" value="100">
-      </div>
-      <div class="scrub">
-        <span>0:00</span>
-        <span><span class="now" id="tnow"></span><button id="reset">whole fight</button></span>
-        <span id="tend">0:00</span>
+    <div class="strip" id="totals"></div>
+
+    <div class="card lead">
+      <div class="lead-grid">
+        <aside class="picks">
+          <h2>Most involved</h2>
+          <div id="picks"></div>
+        </aside>
+        <div class="chart">
+          <h2>How the fight went <span class="focusnote" id="focusnote"></span></h2>
+          <div class="tl" id="tl">
+            <svg id="svg" preserveAspectRatio="none"></svg>
+            <div class="tip" id="tip"></div>
+          </div>
+          <div class="rangewrap">
+            <input type="range" id="r0" min="0" max="100" value="0">
+            <input type="range" id="r1" min="0" max="100" value="100">
+          </div>
+          <div class="scrub">
+            <span>0:00</span>
+            <span><span class="now" id="tnow"></span><button id="reset">whole fight</button></span>
+            <span id="tend">0:00</span>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="totals" id="totals"></div>
-
     <div class="card">
       <h2>Who you fought</h2>
-      <input class="filter" id="q" placeholder="Filter by name…">
-      <p class="hint">Click a name to open their hits and pick them out on the chart. The &times; leaves someone out of the totals.</p>
+      <p class="hint">Click a name to pick them out on the chart and open their hits. The &times; leaves someone out of the totals.</p>
       <div class="exsum" id="exsum"></div>
       <div id="opps"></div>
     </div>
@@ -428,11 +476,10 @@ function start(){
     r0.value = 0; r1.value = DUR; slide();
   });
 
-  document.getElementById('q').addEventListener('input', opponents);
   timeline(); render();
 }
 
-function render(){ totals(); opponents(); parts(); spells(); excluded(); dimTimeline(); }
+function render(){ totals(); picks(); opponents(); parts(); spells(); excluded(); dimTimeline(); }
 
 function spells(){
   const ev = counted();
@@ -512,7 +559,7 @@ function dimTimeline(){
 /* ---------------- timeline ---------------- */
 function timeline(){
   const ev = DATA.events, svg = document.getElementById('svg');
-  const W = 1000, H = 150, mid = H/2, pad = 0;
+  const W = 1000, H = 200, mid = H/2, pad = 0;
   const peak = Math.max(...ev.map(e => e.amount), 1);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
@@ -579,31 +626,75 @@ function totals(){
   const o = out.reduce((s,e)=>s+e.amount,0), i = inc.reduce((s,e)=>s+e.amount,0);
   const avg = a => a.length ? Math.round(a.reduce((s,e)=>s+e.amount,0)/a.length) : 0;
   document.getElementById('totals').innerHTML = `
-    <div class="stat dealt"><span class="k">Damage dealt</span><b>${o.toLocaleString()}</b>
-      <span class="sub">${out.length} hits · ${avg(out)} avg</span></div>
-    <div class="stat taken"><span class="k">Damage taken</span><b>${i.toLocaleString()}</b>
-      <span class="sub">${inc.length} hits · ${avg(inc)} avg</span></div>
-    <div class="stat net"><span class="k">Net</span><b>${o-i>=0?'+':''}${(o-i).toLocaleString()}</b>
-      <span class="sub">${i ? (o/i).toFixed(1)+'× traded' : 'took nothing'}</span></div>`;
+    <div class="dealt"><span class="k">Dealt</span><b>${o.toLocaleString()}</b>
+      <span class="sub">${out.length} hits, ${avg(out)} avg</span></div>
+    <div class="taken"><span class="k">Taken</span><b>${i.toLocaleString()}</b>
+      <span class="sub">${inc.length} hits, ${avg(inc)} avg</span></div>
+    <div class="net"><span class="k">Net</span><b>${o-i>=0?'+':''}${(o-i).toLocaleString()}</b>
+      <span class="sub">${i ? (o/i).toFixed(1)+'\u00d7 traded' : 'took nothing'}</span></div>`;
 }
 
-/* ---------------- opponents ---------------- */
-function opponents(){
-  const q = document.getElementById('q').value.trim().toLowerCase();
+/* ---------------- the fight's headline players ---------------- */
+// Ranked the same way the scoreboard is, so the shortlist and the full list
+// never disagree about who mattered.
+function involvement(){
   const by = {};
   DATA.events.filter(e => inWindow(e) && isHit(e)).forEach(e => {
     const n = foe(e);
     if (!n) return;
-    (by[n] = by[n] || {dealt:0, taken:0, rows:[]});
-    by[n][e.dir === 'out' ? 'dealt' : 'taken'] += e.amount;
-    by[n].rows.push(e);
+    const d = (by[n] = by[n] || {dealt: 0, taken: 0, rows: []});
+    d[e.dir === 'out' ? 'dealt' : 'taken'] += e.amount;
+    d.rows.push(e);
   });
-  let names = Object.keys(by).filter(n => !q || n.toLowerCase().includes(q));
+  return by;
+}
+
+function picks(){
+  const by = involvement();
+  const top = Object.keys(by)
+    .sort((a, b) => (by[b].dealt + by[b].taken) - (by[a].dealt + by[a].taken))
+    .slice(0, 5);
+  const el = document.getElementById('picks');
+  if (!top.length){ el.innerHTML = '<div class="empty">Nobody yet.</div>'; return; }
+
+  el.innerHTML = top.map(n => {
+    const d = by[n];
+    return `<button class="pick${FOCUS === n ? ' on' : ''}" data-p="${esc(n)}">
+      <span class="av" style="background:${tint(n)}">${mark()}</span>
+      <span class="nm">${esc(n)}</span>
+      <span class="amt">${d.dealt + d.taken}</span>
+    </button>`;
+  }).join('') + (FOCUS ? '<button class="clear" id="clearfocus">show everyone</button>' : '');
+
+  el.querySelectorAll('.pick').forEach(b =>
+    b.addEventListener('click', () => setFocus(b.dataset.p)));
+  const c = document.getElementById('clearfocus');
+  if (c) c.addEventListener('click', () => setFocus(FOCUS));
+}
+
+// One place decides who is highlighted, so the shortlist, the scoreboard and
+// the chart cannot drift out of step.
+function setFocus(n){
+  FOCUS = (FOCUS === n) ? null : n;
+  document.querySelectorAll('.opp').forEach(o => o.classList.remove('focus'));
+  if (FOCUS){
+    const b = document.querySelector(`.oppbtn[data-n="${CSS.escape(FOCUS)}"]`);
+    if (b) b.closest('.opp').classList.add('focus');
+  }
+  document.getElementById('focusnote').textContent = FOCUS ? `showing ${FOCUS}` : '';
+  picks();
+  dimTimeline();
+}
+
+/* ---------------- opponents ---------------- */
+function opponents(){
+  const by = involvement();
+  let names = Object.keys(by);
   names.sort((a,b) => (by[b].dealt+by[b].taken) - (by[a].dealt+by[a].taken));
 
   const el = document.getElementById('opps');
   if (!names.length){
-    el.innerHTML = `<div class="empty">${q ? 'Nobody by that name.' : 'No hits in this stretch.'}</div>`;
+    el.innerHTML = '<div class="empty">No hits in this stretch.</div>';
     return;
   }
   // One scale across everyone, so bar lengths compare between rows.
@@ -650,10 +741,7 @@ function opponents(){
     b.setAttribute('aria-expanded', String(!open));
 
     // Opening a name focuses it; closing it again gives the whole fight back.
-    FOCUS = open ? null : n;
-    el.querySelectorAll('.opp').forEach(o => o.classList.remove('focus'));
-    if (FOCUS) b.closest('.opp').classList.add('focus');
-    dimTimeline();
+    setFocus(open ? FOCUS : n);
   }));
 
   // A rebuild throws the rows away, so put the marker back on the focused one.
