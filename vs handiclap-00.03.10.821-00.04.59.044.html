@@ -222,7 +222,7 @@
   .part.handle{background:linear-gradient(180deg,rgba(251,146,60,.13),rgba(251,146,60,.04));
                border-color:rgba(251,146,60,.34);}
   .part.handle b{color:#fb923c;}
-  .prow{display:flex;flex-wrap:wrap;gap:9px;}
+  .prow{display:flex;flex-wrap:wrap;gap:9px;flex-basis:100%;}
   .prow + .prow{margin-top:9px;}
 
   /* Counter-reducing a hit is rare -- two of them across four fights -- so it
@@ -436,12 +436,11 @@ function spells(){
   const box = (label, v, cls) =>
     `<span class="part ${cls}${v ? '' : ' zero'}">${label}<b>${v}</b></span>`;
 
-  document.getElementById('spells').innerHTML = [
-    box('Spell damage dealt', sum(magic, 'out'), 'magic'),
-    box('Spell damage taken', sum(magic, 'in'),  'magic'),
-    box('Healing given',      sum(heal,  'out'), 'heal'),
-    box('Healing received',   sum(heal,  'in'),  'heal'),
-  ].join('');
+  document.getElementById('spells').innerHTML =
+    `<div class="prow">${box('Spell damage given',    sum(magic, 'out'), 'magic')}${
+                        box('Spell damage received', sum(magic, 'in'),  'magic')}</div>` +
+    `<div class="prow">${box('Healing received',      sum(heal,  'in'),  'heal')}${
+                        box('Healing given',         sum(heal,  'out'), 'heal')}</div>`;
 
   // Who was on each end of it -- the point of tracking healing at all.
   const by = (a, k) => {
