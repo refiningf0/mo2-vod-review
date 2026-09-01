@@ -193,6 +193,7 @@
   .mk[data-mk="counter"]{color:var(--accent);}
   .mk[data-mk="parried"]{color:var(--out);}
   .mk[data-mk="gotparried"]{color:var(--in);}
+  .mk{pointer-events:none;}
   .burst{pointer-events:auto;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
@@ -641,11 +642,13 @@ function dimTimeline(){
     n.setAttribute('opacity', on ? '.9' : (FOCUS || HILITE ? '.08' : '.18'));
   });
 
+  // Sitting on the chart all the time, these competed with the damage they
+  // were meant to annotate. They appear only while their stat is selected --
+  // which is the moment you need them, since a parry's own bar is a stub.
   document.querySelectorAll('#marks .mk').forEach(g => {
     const e = DATA.events[+g.dataset.i];
-    const lit = HILITE === g.dataset.mk;
-    g.setAttribute('opacity',
-      !inWindow(e) || EXCLUDED.has(foe(e)) ? '.06' : (lit ? '1' : (HILITE ? '.08' : '.3')));
+    const show = HILITE === g.dataset.mk && inWindow(e) && !EXCLUDED.has(foe(e));
+    g.setAttribute('opacity', show ? '1' : '0');
   });
 
   const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
