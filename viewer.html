@@ -323,6 +323,32 @@
     text-shadow:0 0 28px rgba(109,140,245,.65);
   }
   .part.magic b{color:var(--magic);}
+
+  /* Three readings of the same duel, so they share a shape and differ only in
+     colour: what your counter blunted, what you turned away, what they did. */
+  .duel{
+    flex:1;min-width:150px;display:grid;
+    grid-template-columns:1fr auto;align-items:baseline;gap:4px 12px;
+    padding:15px 18px;cursor:pointer;text-align:left;
+    background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:11px;
+    transition:border-color .12s,background .12s;
+  }
+  .duel .lbl{font-size:.78rem;color:var(--mid);}
+  .duel b{font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums;}
+  .duel .who{
+    grid-column:1 / -1;font-size:.7rem;color:var(--soft);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .duel.counter b{color:var(--accent);}
+  .duel.good b{color:var(--out);}
+  .duel.bad b{color:var(--in);}
+  .duel:hover{background:rgba(255,255,255,.05);border-color:var(--line-2);}
+  .duel.on{background:rgba(109,140,245,.1);border-color:var(--accent-dim);}
+  .duel.good.on{background:rgba(63,191,120,.1);border-color:rgba(63,191,120,.45);}
+  .duel.bad.on{background:rgba(239,90,82,.1);border-color:rgba(239,90,82,.45);}
+  .duel.on .lbl{color:var(--ink);}
+  .duel.zero{opacity:.45;}
+  .duel.zero b{color:var(--soft);}
   /* Present but not achieved: still readable, no longer shouting. */
   .part.zero{opacity:.45;}
   .part.zero b{color:var(--soft);}
@@ -401,6 +427,12 @@
     </div>
 
     <div class="card">
+      <h2>Parries &amp; counters</h2>
+      <div class="prow" id="duel"></div>
+      <p class="note" id="duelnote"></p>
+    </div>
+
+    <div class="card">
       <h2>How your hits landed</h2>
       <div class="parts" id="parts"></div>
       <p class="note" id="defnote"></p>
@@ -468,6 +500,9 @@ const foe = e => e.dir === 'out' ? e.target : e.who;
 const EXCLUDED = new Set();
 // One name at a time, to see just their exchange against the whole fight.
 let FOCUS = null;
+// A second way to read the chart: not "who", but "what happened". Kept apart
+// from FOCUS so one question is being asked of the timeline at a time.
+let HILITE = null;
 const inWindow = e => e.t >= T0 && e.t <= T1;
 const isHit = e => (e.kind || 'hit') === 'hit';
 const isHeal = e => e.kind === 'heal';
@@ -519,7 +554,7 @@ function start(){
   timeline(); render();
 }
 
-function render(){ totals(); roster(); detail(); parts(); spells(); excluded(); dimTimeline(); }
+function render(){ totals(); roster(); detail(); duel(); parts(); spells(); excluded(); dimTimeline(); }
 
 function spells(){
   const ev = counted();
@@ -586,8 +621,8 @@ function dimTimeline(){
   document.querySelectorAll('#hits rect').forEach(n => {
     const e = DATA.events[+n.dataset.i];
     const on = inWindow(e) && !EXCLUDED.has(foe(e)) &&
-               (!FOCUS || foe(e) === FOCUS);
-    n.setAttribute('opacity', on ? '.9' : (FOCUS ? '.08' : '.18'));
+               (!FOCUS || foe(e) === FOCUS) && duelMatch(e);
+    n.setAttribute('opacity', on ? '.9' : (FOCUS || HILITE ? '.08' : '.18'));
   });
 
   const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
@@ -832,9 +867,11 @@ function detail(){
 // the chart cannot drift out of step.
 function setFocus(n){
   FOCUS = (FOCUS === n) ? null : n;
+  if (FOCUS) HILITE = null;
   document.getElementById('focusnote').textContent = FOCUS ? `showing ${FOCUS}` : '';
   roster();
   detail();
+  duel();
   dimTimeline();
 }
 
@@ -854,6 +891,63 @@ function table(rows){
   return `<table><thead><tr>
     <th>time</th><th></th><th style="text-align:right">dmg</th><th>where</th><th></th>
   </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/* ---------------- parries and counters ---------------- */
+
+// The three moments worth finding again: a swing of theirs your counter blunted,
+// a swing of theirs you turned away, and one of yours they turned away.
+const DUEL = [
+  {k: 'counter', label: 'Counter reduced', tone: 'counter',
+   test: e => e.dir === 'in'  && (e.flags || []).includes('Counter Reduced')},
+  {k: 'parried', label: 'Parried them', tone: 'good',
+   test: e => e.dir === 'in'  && (e.flags || []).includes('Parry')},
+  {k: 'gotparried', label: 'Got parried', tone: 'bad',
+   test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
+];
+
+function duelMatch(e){
+  const d = DUEL.find(x => x.k === HILITE);
+  return !d || (isHit(e) && d.test(e));
+}
+
+function duel(){
+  const ev = counted().filter(isHit);
+  const el = document.getElementById('duel');
+
+  el.innerHTML = DUEL.map(d => {
+    const rows = ev.filter(d.test);
+    const who = {};
+    rows.forEach(e => {
+      const n = e.dir === 'out' ? e.target : e.who;
+      if (n && n !== 'You') who[n] = (who[n] || 0) + 1;
+    });
+    const names = Object.entries(who).sort((a, b) => b[1] - a[1])
+      .map(([n, c]) => `${esc(n)}${c > 1 ? ' \u00d7' + c : ''}`).join(', ');
+    return `<button class="part duel ${d.tone}${HILITE === d.k ? ' on' : ''}${
+        rows.length ? '' : ' zero'}" data-h="${d.k}" aria-pressed="${HILITE === d.k}">
+      <span class="lbl">${d.label}</span>
+      <b>${rows.length}</b>
+      <span class="who">${names || '\u2014'}</span>
+    </button>`;
+  }).join('');
+
+  el.querySelectorAll('.duel').forEach(b =>
+    b.addEventListener('click', () => setHilite(b.dataset.h)));
+
+  document.getElementById('duelnote').textContent = HILITE
+    ? 'Click it again to put the whole fight back on the chart.'
+    : 'Click one to pick those moments out of the chart.';
+}
+
+// Asking "who" and asking "what happened" at once usually leaves an empty
+// chart, so choosing one clears the other.
+function setHilite(k){
+  HILITE = (HILITE === k) ? null : k;
+  if (HILITE) FOCUS = null;
+  const d = DUEL.find(x => x.k === HILITE);
+  document.getElementById('focusnote').textContent = d ? `showing ${d.label.toLowerCase()}` : '';
+  roster(); detail(); duel(); dimTimeline();
 }
 
 /* ---------------- how hits landed ---------------- */
@@ -891,24 +985,16 @@ function parts(){
 
   const el = document.getElementById('parts');
 
-  // Every chip above is a swing of yours. This one is the other way round:
-  // a hit you took whose damage your own counter cut down.
-  const countered = counted().filter(e =>
-    isHit(e) && e.dir === 'in' && (e.flags || []).includes('Counter Reduced'));
-  const trophy =
-    `<span class="part trophy${countered.length ? '' : ' zero'}">` +
-    `<span class="lbl">Counter reduced</span>` +
-    `<b>${countered.length}</b></span>`;
-
   // Every category is shown whether or not it happened -- a row that vanishes
   // reads as the tool having missed something rather than as a zero.
   const pick = f => chip(LABEL[f], tally[f] || {n: 0, dmg: 0},
                          TONE[f] || '', COUNT_ONLY.includes(f));
 
   // Landed, stopped by them, stopped by your own grip -- then the odds and ends.
+  // Parries and counters have a panel of their own above; leaving them here
+  // as well would show the same figure twice on one screen.
   el.innerHTML =
-    `<div class="prow">${trophy}</div>` +
-    `<div class="prow">${chip('Clean hits', clean, 'main')}${pick('Parry')}${pick('Handle')}</div>` +
+    `<div class="prow">${chip('Clean hits', clean, 'main')}${pick('Handle')}</div>` +
     `<div class="prow">${pick('Equipment')}${pick('Blocked')}</div>`;
 
   const stopped = hits.length - clean.n;
