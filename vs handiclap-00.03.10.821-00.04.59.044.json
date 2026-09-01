@@ -1,0 +1,801 @@
+{
+ "source": "vs handiclap-00.03.10.821-00.04.59.044.mp4",
+ "duration": 108.6,
+ "fps_sampled": 2.0,
+ "frames": 217,
+ "ocr_lines": 2562,
+ "players": [
+  "Aims",
+  "Esarhaddon",
+  "Feltras",
+  "Handiclap",
+  "Mavvrum",
+  "Nopes",
+  "Qiade",
+  "Troglodooty"
+ ],
+ "events": [
+  {
+   "t": 11.0,
+   "ft": 11.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Handiclap",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:23:59] [Combat] You hit Handiclap for O[Parry]",
+   "seen": 29
+  },
+  {
+   "t": 12.0,
+   "ft": 12.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Feltras",
+   "target": "You",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Arm"
+   ],
+   "raw": "[22:24:00] [Combat] Feltras hits ypu for 0[Torso] [Arm]",
+   "seen": 12
+  },
+  {
+   "t": 20.0,
+   "ft": 20.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:08] [Combat] You hit Esarhaddon for O[Parry]",
+   "seen": 13
+  },
+  {
+   "t": 23.0,
+   "ft": 23.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 24,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24: 11] [Combat] You hitEsarhaddon for 24[Torsp]",
+   "seen": 15
+  },
+  {
+   "t": 25.0,
+   "ft": 25.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Mavvrum",
+   "target": "You",
+   "amount": 7,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Handle"
+   ],
+   "raw": "[22:24: 13] [Combat] Mavvrum hits you for 7 [Torso] [Handle]",
+   "seen": 9
+  },
+  {
+   "t": 25.0,
+   "ft": 25.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Mavvrum",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:13] [Combat] You hit Mavvrum for 30[Torso]",
+   "seen": 14
+  },
+  {
+   "t": 27.0,
+   "ft": 27.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Handiclap",
+   "target": "You",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Left Limb",
+    "Arm"
+   ],
+   "raw": "[22:24:15] [Combat] Handiclap hits you for O[Left",
+   "seen": 16
+  },
+  {
+   "t": 27.0,
+   "ft": 27.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Handiclap",
+   "amount": 5,
+   "ability": null,
+   "flags": [
+    "Head",
+    "Counter Reduced"
+   ],
+   "raw": "[22:24: 15] [Combat] You hit Handiclap for 5[Head] [Counter Reduced]",
+   "seen": 13
+  },
+  {
+   "t": 28.0,
+   "ft": 27.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Mavvrum",
+   "amount": 13,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:16] [Combat] You hit Mavvrum for 13 [Torso]",
+   "seen": 19
+  },
+  {
+   "t": 29.0,
+   "ft": 28.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Mavvrum",
+   "target": "You",
+   "amount": 12,
+   "ability": null,
+   "flags": [
+    "Equipment"
+   ],
+   "raw": "[22:24:17] [Combat] Mavvrum hits you for 12[Equipment]",
+   "seen": 18
+  },
+  {
+   "t": 30.0,
+   "ft": 38.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 17,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:18] [Combat] You hit Qlade for 17[Torso]",
+   "seen": 22
+  },
+  {
+   "t": 32.0,
+   "ft": 31.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Mavvrum",
+   "amount": 28,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:24:20] [Combat] You hit Mavvrum for 28[Right Limb]",
+   "seen": 25
+  },
+  {
+   "t": 34.0,
+   "ft": 34.0,
+   "exact": false,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[Combat] You hit Qiade for 30[Torso]",
+   "seen": 26
+  },
+  {
+   "t": 36.0,
+   "ft": 37.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:24] [Combat] You hit Qlade for O[Parry]",
+   "seen": 27
+  },
+  {
+   "t": 38.0,
+   "ft": 38.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 20,
+   "ability": null,
+   "flags": [
+    "Head"
+   ],
+   "raw": "[22:24:26] [Combat] Qlade hits you for 20[Head]",
+   "seen": 26
+  },
+  {
+   "t": 38.0,
+   "ft": 40.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 4,
+   "ability": null,
+   "flags": [
+    "Right Limb",
+    "Counter Reduced"
+   ],
+   "raw": "[22:24:26] [Combat] You hit Qlade for 4[Right Limb] [Counter Reduced]",
+   "seen": 29
+  },
+  {
+   "t": 39.0,
+   "ft": 42.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 28,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:27] [Combat] You hit Qlade for 28[Torso]",
+   "seen": 25
+  },
+  {
+   "t": 42.0,
+   "ft": 41.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Feltras",
+   "amount": 31,
+   "ability": null,
+   "flags": [
+    "Left Limb"
+   ],
+   "raw": "[22:24:30] [Combat] You hit Feltras for 31 [Left Limb]",
+   "seen": 24
+  },
+  {
+   "t": 48.0,
+   "ft": 47.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 20,
+   "ability": null,
+   "flags": [
+    "Lower Body",
+    "Sting"
+   ],
+   "raw": "[22:24:36] [Combat] You hit Esarhaddon for 20[Lowgr Body] [Sting]",
+   "seen": 21
+  },
+  {
+   "t": 49.0,
+   "ft": 49.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 20,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Sting"
+   ],
+   "raw": "[22:24:37] [Combat] You hit Esarhaddon for 20[Torso][Sting]",
+   "seen": 9
+  },
+  {
+   "t": 52.0,
+   "ft": 51.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 27,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:24:40] [Combat] You hit Esarhaddon for 27 [Right Limb]",
+   "seen": 13
+  },
+  {
+   "t": 53.0,
+   "ft": 52.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Esarhaddon",
+   "target": "You",
+   "amount": 16,
+   "ability": null,
+   "flags": [
+    "Equipment"
+   ],
+   "raw": "[22:24:41] [Combat] Esarhaddon hits you for 16[Equipment] \u00af",
+   "seen": 12
+  },
+  {
+   "t": 53.0,
+   "ft": 54.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:41] [Combat] You hit Esarhaddon for O[Parry]",
+   "seen": 12
+  },
+  {
+   "t": 55.0,
+   "ft": 54.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Esarhaddon",
+   "target": "You",
+   "amount": 38,
+   "ability": null,
+   "flags": [
+    "Lower Body"
+   ],
+   "raw": "[22:24:43] [Combat] Esarhaddon hits you for 38[Lower Body]",
+   "seen": 12
+  },
+  {
+   "t": 55.0,
+   "ft": 54.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 3,
+   "ability": null,
+   "flags": [
+    "Right Limb",
+    "Counter Reduced"
+   ],
+   "raw": "[22:24:43][Combat] You hit Esarhaddon for 3[Right Limb][Counter Reduced]",
+   "seen": 12
+  },
+  {
+   "t": 56.0,
+   "ft": 56.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:44] [Combat] You hit Esarhaddon for O[Parry]",
+   "seen": 10
+  },
+  {
+   "t": 58.0,
+   "ft": 57.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Handiclap",
+   "target": "You",
+   "amount": 29,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Armor Pierced"
+   ],
+   "raw": "[22:24:46] [Combat] Handiclap hits you for 29[Torso][ArmorPierced]",
+   "seen": 8
+  },
+  {
+   "t": 58.0,
+   "ft": 57.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Nopes",
+   "target": "You",
+   "amount": 23,
+   "ability": null,
+   "flags": [
+    "Lower Body"
+   ],
+   "raw": "[22:24:46] [Combat] Nopes hits you for 23[Lower Body]",
+   "seen": 7
+  },
+  {
+   "t": 59.0,
+   "ft": 58.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 29,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:47] [Combat] Qlade hits you for 29[Torso]",
+   "seen": 9
+  },
+  {
+   "t": 60.0,
+   "ft": 60.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 16,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:48] [Combat] Qlade hits you for 16[Torso]",
+   "seen": 6
+  },
+  {
+   "t": 61.0,
+   "ft": 60.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Mavvrum",
+   "target": "You",
+   "amount": 12,
+   "ability": null,
+   "flags": [
+    "Equipment"
+   ],
+   "raw": "[22:24:49] [Combat] Mavvrum hits you for 12[Equipment]",
+   "seen": 9
+  },
+  {
+   "t": 61.0,
+   "ft": 61.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 24,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:49][Combat] Qlade hits you for 24[Torso]",
+   "seen": 10
+  },
+  {
+   "t": 63.0,
+   "ft": 62.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 18,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:24:51] [Combat] Qlade hits you for 18[Torso]",
+   "seen": 17
+  },
+  {
+   "t": 64.0,
+   "ft": 66.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Mavvrum",
+   "target": "You",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:52] [Combat] Mavvrum hits you for O[Parry]",
+   "seen": 23
+  },
+  {
+   "t": 65.0,
+   "ft": 66.0,
+   "exact": true,
+   "dir": "in",
+   "who": "Mavvrum",
+   "target": "You",
+   "amount": 2,
+   "ability": null,
+   "flags": [
+    "Left Limb",
+    "Counter Reduced"
+   ],
+   "raw": "[22:24:53] [Combat] Mavvrum hits you for 2 [Left Limb] [Counter Reduced]",
+   "seen": 27
+  },
+  {
+   "t": 65.0,
+   "ft": 66.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Mavvrum",
+   "amount": 35,
+   "ability": null,
+   "flags": [
+    "Left Limb"
+   ],
+   "raw": "[22:24:53] [Combat] You hit Mavvrum for 35 [Left Limb]",
+   "seen": 21
+  },
+  {
+   "t": 67.0,
+   "ft": 66.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Mavvrum",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:24:55] [Combat] You hit Mavvrum for O[Parry]",
+   "seen": 27
+  },
+  {
+   "t": 71.5,
+   "ft": 71.5,
+   "exact": false,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 26,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[Combat] You hit Qiade for 26[Tors01",
+   "seen": 23
+  },
+  {
+   "t": 76.0,
+   "ft": 76.0,
+   "exact": false,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 12,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Handle",
+    "Sting"
+   ],
+   "raw": "[Combat] You hit Qiade for 12[T0Fso] [Handle] [Sting]",
+   "seen": 8
+  },
+  {
+   "t": 76.0,
+   "ft": 80.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 19,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Sting"
+   ],
+   "raw": "[22:25:04] [Combat]You hit Qlade for 19[Torso] [Sting]",
+   "seen": 5
+  },
+  {
+   "t": 79.0,
+   "ft": 86.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:25:07] [Combat] You hit Qlade for 30[Torso]",
+   "seen": 25
+  },
+  {
+   "t": 80.0,
+   "ft": 81.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 28,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Sting"
+   ],
+   "raw": "[22:25:08] [Gombat] You hit Qlade for 28[Torso] [Sting]",
+   "seen": 24
+  },
+  {
+   "t": 83.0,
+   "ft": 87.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 47,
+   "ability": null,
+   "flags": [
+    "Head"
+   ],
+   "raw": "[22:25: 11] [Combat] You hit Esarhaddon for 47[Head]",
+   "seen": 25
+  },
+  {
+   "t": 85.0,
+   "ft": 84.5,
+   "exact": true,
+   "dir": "in",
+   "who": "Nopes",
+   "target": "You",
+   "amount": 15,
+   "ability": null,
+   "flags": [
+    "Equipment"
+   ],
+   "raw": "[22:25:13] [Combat] Nopes hits you for 15[Equipment]",
+   "seen": 34
+  },
+  {
+   "t": 85.0,
+   "ft": 84.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Troglodooty",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Head",
+    "Arm"
+   ],
+   "raw": "[22:25: 13] [Combat] You hit Troglodooty for 0[Head] [Arm]",
+   "seen": 7
+  },
+  {
+   "t": 86.0,
+   "ft": 86.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Handiclap",
+   "amount": 25,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:25:14] [Combat] You hit Handiclap for 25[Right Limb]",
+   "seen": 33
+  },
+  {
+   "t": 95.0,
+   "ft": 96.5,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 56,
+   "ability": null,
+   "flags": [
+    "Left Limb"
+   ],
+   "raw": "[22:25:23] [Combat] You hit Aims for 56[Left Limb]",
+   "seen": 25
+  },
+  {
+   "t": 97.0,
+   "ft": 99.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 45,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:25:25] [Combat] You hit Aims for 4S[Torso]",
+   "seen": 24
+  },
+  {
+   "t": 99.0,
+   "ft": 99.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 32,
+   "ability": null,
+   "flags": [
+    "Lower Body",
+    "Sting"
+   ],
+   "raw": "[22:25:27] [Combat] You hit Aims for 32[Lower Body][Sting]",
+   "seen": 19
+  },
+  {
+   "t": 99.5,
+   "ft": 99.5,
+   "exact": false,
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 24,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Sting"
+   ],
+   "raw": "[Combat] You hit Aims for 24[Torso] [Sting]",
+   "seen": 15
+  },
+  {
+   "t": 102.0,
+   "ft": 102.0,
+   "exact": true,
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Lower Body"
+   ],
+   "raw": "[22:25:30] [Combat] You hit Aims for 30[Lower Body]",
+   "seen": 13
+  }
+ ]
+}

@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MO2 Fight Log</title>
+<style>
+  /* Dark, gold-trimmed, numbers first -- a post-match screen rather than a
+     spreadsheet. Everything is CSS: the report has to open with no network. */
+  :root{
+    --bg:#07090d; --panel:#111620; --panel-2:#161c28;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+    --ink:#eef2f8; --mid:#96a3b6; --soft:#5b6879;
+    --gold:#d9b26a; --gold-dim:rgba(217,178,106,.5);
+    --out:#3fd68b; --in:#ff5f5f; --magic:#a78bfa; --heal:#4cc9f0;
+    --r:16px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;color:var(--ink);
+    background:
+      radial-gradient(900px 460px at 50% -140px, rgba(217,178,106,.10), transparent 70%),
+      radial-gradient(700px 400px at 12% 8%, rgba(76,201,240,.05), transparent 65%),
+      var(--bg);
+    background-attachment:fixed;
+    font:15px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:44px 20px 120px;}
+  .num{font-variant-numeric:tabular-nums;}
+
+  /* ---- header ---- */
+  .eyebrow{
+    font-size:.64rem;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--gold);opacity:.85;margin:0 0 10px;font-weight:600;
+  }
+  h1{
+    font-size:clamp(1.5rem,3.4vw,2.15rem);margin:0 0 12px;line-height:1.15;
+    letter-spacing:-.02em;font-weight:700;
+    background:linear-gradient(180deg,#fff,#b9c4d4);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    overflow-wrap:anywhere;
+  }
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 30px;padding:0;}
+  .meta span{
+    font-size:.72rem;color:var(--mid);border:1px solid var(--line);
+    background:rgba(255,255,255,.02);border-radius:999px;padding:4px 11px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---- drop target ---- */
+  .drop{
+    display:block;border:1.5px dashed var(--line-2);border-radius:var(--r);
+    padding:56px 20px;text-align:center;color:var(--mid);cursor:pointer;
+    background:linear-gradient(180deg,var(--panel),rgba(17,22,32,.4));
+    transition:border-color .15s,background .15s;
+  }
+  .drop:hover,.drop.over{border-color:var(--gold-dim);background:var(--panel-2);}
+  .drop input{display:none;}
+  .drop b{color:var(--ink);display:block;margin-bottom:5px;font-size:1.1rem;}
+
+  /* ---- cards ---- */
+  .card{
+    position:relative;background:linear-gradient(180deg,var(--panel),rgba(15,20,29,.75));
+    border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -30px #000;
+  }
+  h2{
+    display:flex;align-items:center;gap:10px;
+    font-size:.68rem;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--gold);font-weight:700;margin:0 0 16px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
+
+  /* ---- headline numbers ---- */
+  .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
+  .stat{
+    position:relative;overflow:hidden;padding:18px 20px 16px;
+    background:linear-gradient(180deg,var(--panel),rgba(15,20,29,.7));
+    border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+  }
+  .stat::before{content:"";position:absolute;inset:0 0 auto 0;height:2px;opacity:.9;}
+  .stat.dealt::before{background:linear-gradient(90deg,var(--out),transparent);}
+  .stat.taken::before{background:linear-gradient(90deg,var(--in),transparent);}
+  .stat.net::before{background:linear-gradient(90deg,var(--gold),transparent);}
+  .stat .k{
+    display:block;font-size:.63rem;text-transform:uppercase;letter-spacing:.16em;
+    color:var(--soft);margin-bottom:10px;font-weight:600;
+  }
+  .stat b{
+    display:block;font-size:clamp(1.9rem,4.6vw,2.6rem);font-weight:750;line-height:1;
+    letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+  }
+  .stat.dealt b{color:var(--out);text-shadow:0 0 34px rgba(63,214,139,.28);}
+  .stat.taken b{color:var(--in);text-shadow:0 0 34px rgba(255,95,95,.24);}
+  .stat.net b{color:var(--ink);}
+  .stat .sub{display:block;font-size:.74rem;color:var(--soft);margin-top:9px;}
+
+  /* ---- timeline ---- */
+  .tl{position:relative;}
+  .tl svg{display:block;width:100%;height:158px;overflow:visible;}
+  .tip{
+    position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
+    background:rgba(8,10,14,.96);border:1px solid var(--line-2);border-radius:9px;
+    padding:7px 10px;font-size:.78rem;white-space:nowrap;z-index:5;
+    transform:translate(-50%,-100%);box-shadow:0 10px 30px -12px #000;
+  }
+  .rangewrap{position:relative;height:26px;margin-top:10px;}
+  .rangewrap input{
+    position:absolute;left:0;top:0;width:100%;height:26px;margin:0;padding:0;
+    background:none;pointer-events:none;-webkit-appearance:none;appearance:none;
+  }
+  .rangewrap input:focus{outline:none;}
+  .rangewrap input::-webkit-slider-runnable-track{height:26px;background:none;}
+  .rangewrap input::-moz-range-track{height:26px;background:none;}
+  .rangewrap input::-webkit-slider-thumb{
+    -webkit-appearance:none;pointer-events:auto;cursor:ew-resize;
+    width:13px;height:22px;border-radius:5px;margin-top:2px;
+    background:linear-gradient(180deg,#f0d296,var(--gold));
+    border:2px solid var(--bg);box-shadow:0 0 14px rgba(217,178,106,.45);
+  }
+  .rangewrap input::-moz-range-thumb{
+    pointer-events:auto;cursor:ew-resize;width:11px;height:20px;border-radius:5px;
+    background:var(--gold);border:2px solid var(--bg);
+  }
+  .scrub{display:flex;justify-content:space-between;align-items:center;
+         color:var(--soft);font-size:.73rem;margin-top:4px;font-variant-numeric:tabular-nums;}
+  .scrub .now{color:var(--ink);}
+  .scrub button{
+    background:none;border:1px solid var(--line-2);color:var(--mid);border-radius:7px;
+    font:inherit;font-size:.71rem;padding:3px 10px;cursor:pointer;margin-left:10px;
+  }
+  .scrub button:hover{border-color:var(--gold-dim);color:var(--gold);}
+
+  /* ---- scoreboard ---- */
+  .filter{
+    width:100%;background:rgba(0,0,0,.28);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:10px 13px;font:inherit;font-size:.88rem;margin-bottom:8px;
+  }
+  .filter::placeholder{color:var(--soft);}
+  .filter:focus{outline:none;border-color:var(--gold-dim);background:rgba(0,0,0,.4);}
+  .hint{color:var(--soft);font-size:.72rem;margin:0 0 12px;}
+  .exsum{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    color:var(--mid);font-size:.75rem;margin:0 0 10px;
+  }
+  .exsum button{
+    background:none;border:none;color:var(--gold);font:inherit;font-size:.75rem;
+    cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;
+  }
+
+  .opp{border-top:1px solid var(--line);}
+  .opp:first-child{border-top:none;}
+  .opprow{display:flex;align-items:center;gap:4px;}
+  .opprow .oppbtn{flex:1;min-width:0;}
+  .oppbtn{
+    background:none;border:none;color:inherit;font:inherit;cursor:pointer;
+    display:grid;grid-template-columns:26px 34px minmax(94px,1fr) 2.1fr 116px;
+    align-items:center;gap:12px;padding:11px 8px;text-align:left;border-radius:10px;
+    transition:background .12s;
+  }
+  .oppbtn:hover{background:rgba(255,255,255,.035);}
+  .rank{font-size:.78rem;color:var(--soft);font-variant-numeric:tabular-nums;text-align:right;}
+  .badge{
+    width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+    font-size:.82rem;font-weight:700;color:#0a0d12;letter-spacing:-.01em;
+  }
+  .oppname{font-weight:650;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .oppname .hits{display:block;font-weight:400;font-size:.69rem;color:var(--soft);letter-spacing:.02em;}
+  .bars{display:flex;align-items:center;height:24px;}
+  .half{flex:1;display:flex;height:9px;}
+  .half.l{justify-content:flex-end;}
+  .half .fill{border-radius:999px;min-width:0;transition:opacity .12s;}
+  .half.l .fill{background:linear-gradient(270deg,var(--in),rgba(255,95,95,.45));}
+  .half.r .fill{background:linear-gradient(90deg,var(--out),rgba(63,214,139,.45));}
+  .spine{width:1px;height:24px;background:var(--line-2);flex:none;}
+  .oppnums{display:flex;justify-content:space-between;font-size:.86rem;
+           font-variant-numeric:tabular-nums;font-weight:650;}
+  .oppnums .t{color:var(--in);} .oppnums .d{color:var(--out);} .oppnums .z{color:var(--soft);font-weight:400;}
+
+  .ex{
+    flex:none;background:none;border:1px solid transparent;color:var(--soft);
+    font:inherit;font-size:1rem;line-height:1;width:30px;height:30px;
+    border-radius:9px;cursor:pointer;opacity:0;transition:opacity .12s,color .12s;
+  }
+  .opprow:hover .ex,.opp.off .ex{opacity:1;}
+  .ex:hover{border-color:var(--line-2);color:var(--ink);background:rgba(255,255,255,.05);}
+  .ex:focus-visible{opacity:1;outline:2px solid var(--gold);outline-offset:1px;}
+  .opp.off .oppname,.opp.off .oppnums,.opp.off .badge{opacity:.3;}
+  .opp.off .half .fill{opacity:.2;}
+  .opp.off .ex{color:var(--gold);}
+  .opp.focus{background:linear-gradient(90deg,rgba(217,178,106,.09),transparent);border-radius:12px;}
+  .opp.focus .oppname{color:var(--gold);}
+
+  .detail{padding:0 8px 18px 74px;}
+  table{width:100%;border-collapse:collapse;font-size:.82rem;}
+  th{font-size:.62rem;text-transform:uppercase;letter-spacing:.11em;color:var(--soft);
+     font-weight:600;text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);}
+  td{padding:7px 9px;border-top:1px solid rgba(255,255,255,.045);color:var(--mid);}
+  td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+  td.n.out{color:var(--out);} td.n.in{color:var(--in);}
+  td.who{color:var(--ink);}
+  .chip{display:inline-block;font-size:.66rem;color:var(--mid);border:1px solid var(--line-2);
+        border-radius:5px;padding:1px 6px;margin-right:4px;}
+
+  /* ---- stat pills ---- */
+  .parts{display:flex;flex-wrap:wrap;gap:9px;}
+  .part{
+    display:flex;align-items:baseline;gap:9px;
+    background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:11px;
+    padding:10px 14px;font-size:.79rem;color:var(--mid);
+  }
+  .part b{font-variant-numeric:tabular-nums;color:var(--ink);font-size:.92rem;font-weight:700;}
+  .part.main{background:linear-gradient(180deg,rgba(63,214,139,.12),rgba(63,214,139,.04));
+             border-color:rgba(63,214,139,.3);}
+  .part.main b{color:var(--out);}
+  .part.parry{background:linear-gradient(180deg,rgba(255,95,95,.13),rgba(255,95,95,.04));
+              border-color:rgba(255,95,95,.34);}
+  .part.parry b{color:var(--in);}
+  .part.handle{background:linear-gradient(180deg,rgba(251,146,60,.13),rgba(251,146,60,.04));
+               border-color:rgba(251,146,60,.34);}
+  .part.handle b{color:#fb923c;}
+  .prow{display:flex;flex-wrap:wrap;gap:9px;}
+  .prow + .prow{margin-top:9px;}
+
+  /* Counter-reducing a hit is rare -- two of them across four fights -- so it
+     gets the top row and is dressed to look like something you pulled off. */
+  .part.trophy{
+    width:100%;justify-content:space-between;align-items:center;gap:16px;
+    padding:15px 20px;border-color:var(--gold);
+    background:
+      linear-gradient(135deg,rgba(217,178,106,.24),rgba(217,178,106,.07) 55%,transparent),
+      var(--panel-2);
+    box-shadow:0 0 46px -14px rgba(217,178,106,.55), inset 0 1px 0 rgba(255,255,255,.09);
+  }
+  .part.trophy .lbl{
+    display:flex;align-items:center;gap:9px;
+    font-size:.7rem;text-transform:uppercase;letter-spacing:.17em;
+    color:var(--gold);font-weight:700;
+  }
+  .part.trophy .lbl::before{content:"\25c6";font-size:.72rem;opacity:.9;}
+  .part.trophy b{
+    font-size:1.9rem;line-height:1;color:var(--gold);
+    text-shadow:0 0 28px rgba(217,178,106,.65);
+  }
+  .part.magic b{color:var(--magic);}
+  /* Present but not achieved: still readable, no longer shouting. */
+  .part.zero{opacity:.45;}
+  .part.zero b{color:var(--soft);}
+  .part.trophy.zero{
+    background:var(--panel-2);border-color:var(--line-2);box-shadow:none;opacity:1;
+  }
+  .part.trophy.zero .lbl{color:var(--soft);}
+  .part.trophy.zero b{color:var(--soft);text-shadow:none;}
+  .part.heal b{color:var(--heal);}
+  .note,.who{color:var(--soft);font-size:.78rem;margin:14px 0 0;line-height:1.6;}
+  .who b{color:var(--ink);font-weight:650;}
+
+  .empty{color:var(--soft);text-align:center;padding:38px 0;font-size:.9rem;}
+
+  @media(max-width:760px){
+    .totals{grid-template-columns:1fr;}
+    .oppbtn{grid-template-columns:30px minmax(80px,1fr) 104px;gap:10px;}
+    .rank,.bars{display:none;}
+    .detail{padding-left:8px;}
+  }
+
+  /* Last, so it beats the display rule on whatever it is hiding. */
+  .hide{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Mortal Online 2 &middot; Fight Report</p>
+  <h1 id="title">MO2 Fight Log</h1>
+  <div class="meta" id="meta"></div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".json">
+    <b>Drop a fight.json here</b>
+    <span>or click to choose one</span>
+  </label>
+
+  <div id="app" class="hide">
+    <div class="card">
+      <h2>How the fight went</h2>
+      <div class="tl" id="tl">
+        <svg id="svg" preserveAspectRatio="none"></svg>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="rangewrap">
+        <input type="range" id="r0" min="0" max="100" value="0">
+        <input type="range" id="r1" min="0" max="100" value="100">
+      </div>
+      <div class="scrub">
+        <span>0:00</span>
+        <span><span class="now" id="tnow"></span><button id="reset">whole fight</button></span>
+        <span id="tend">0:00</span>
+      </div>
+    </div>
+
+    <div class="totals" id="totals"></div>
+
+    <div class="card">
+      <h2>Who you fought</h2>
+      <input class="filter" id="q" placeholder="Filter by name…">
+      <p class="hint">Click a name to open their hits and pick them out on the chart. The &times; leaves someone out of the totals.</p>
+      <div class="exsum" id="exsum"></div>
+      <div id="opps"></div>
+    </div>
+
+    <div class="card">
+      <h2>How your hits landed</h2>
+      <div class="parts" id="parts"></div>
+      <p class="note" id="defnote"></p>
+    </div>
+
+    <div class="card" id="spellcard">
+      <h2>Magic &amp; healing</h2>
+      <div class="parts" id="spells"></div>
+      <p class="who" id="healwho"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+let DATA = null;
+let DUR = 1;
+let T0 = 0, T1 = 0;
+
+/* MO2 tags each line with where it landed, plus what happened to it. Only the
+   first group is a location. Parry and Blocked are outcomes -- the swing
+   connected with nothing. Sting is a weapon proc on an ordinary hit, so it is
+   deliberately not called out as anything special. */
+const BODY = ['Head','Torso','Right Limb','Left Limb','Lower Body'];
+const NORMAL = ['Sting'];
+// What actually happened to the swing. Where it landed matters far less than
+// whether it landed at all, so these get counted on their own.
+const OUTCOMES = ['Parry','Blocked','Equipment','Handle'];
+const isBody = f => BODY.includes(f);
+const isNoise = f => NORMAL.includes(f);
+const isOutcome = f => OUTCOMES.includes(f);
+
+/* ---------------- loading ---------------- */
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.__BAKED__) { DATA = window.__BAKED__; start(); }
+});
+const drop = document.getElementById('drop');
+document.getElementById('file').addEventListener('change',
+  e => e.target.files[0] && read(e.target.files[0]));
+['dragenter','dragover'].forEach(n => drop.addEventListener(n, e => {
+  e.preventDefault(); drop.classList.add('over');
+}));
+['dragleave','drop'].forEach(n => drop.addEventListener(n, e => {
+  e.preventDefault(); drop.classList.remove('over');
+}));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) read(f); });
+
+function read(f){
+  const r = new FileReader();
+  r.onload = () => {
+    try { DATA = JSON.parse(r.result); } catch { alert('That is not valid JSON.'); return; }
+    if (!DATA.events) { alert('No events in that file.'); return; }
+    start();
+  };
+  r.readAsText(f);
+}
+
+/* ---------------- helpers ---------------- */
+const esc = s => String(s).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = s => `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+const foe = e => e.dir === 'out' ? e.target : e.who;
+
+/* Opponents taken out of the totals. Their row stays put, greyed, so you can
+   see what you set aside and put it back. */
+const EXCLUDED = new Set();
+// One name at a time, to see just their exchange against the whole fight.
+let FOCUS = null;
+const inWindow = e => e.t >= T0 && e.t <= T1;
+const isHit = e => (e.kind || 'hit') === 'hit';
+const isHeal = e => e.kind === 'heal';
+// An ability that is not a weapon is a spell: "arrow" is a bow, "Corrupt" is not.
+const WEAPONS = ['arrow','arrows','bolt','bolts','dagger','sword','axe','mace',
+                 'spear','javelin','hammer','bow','blade','lance','club','staff',
+                 'knife','pike','halberd','shield','fist','fists'];
+const isMagic = e => isHit(e) && e.ability && !WEAPONS.includes(e.ability.toLowerCase());
+const counted = () => DATA.events.filter(e => inWindow(e) && !EXCLUDED.has(foe(e)));
+
+function start(){
+  drop.classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+  document.getElementById('title').textContent =
+    (DATA.source || 'Fight').replace(/\.[^.]+$/, '');
+  DUR = Math.max(DATA.duration || 0, ...DATA.events.map(e => e.t), 1);
+  document.getElementById('meta').innerHTML =
+    [fmt(DUR), `${DATA.events.length} events`, `${(DATA.players||[]).length} players`]
+      .map(t => `<span>${esc(t)}</span>`).join('');
+  T0 = 0; T1 = DUR;
+  document.getElementById('tend').textContent = fmt(DUR);
+
+  const r0 = document.getElementById('r0'), r1 = document.getElementById('r1');
+  // A step derived from the duration cannot land exactly on it, which leaves
+  // the right handle short of the end so the fight never reads as whole.
+  [r0, r1].forEach(r => { r.max = DUR; r.step = 'any'; });
+  r0.value = 0; r1.value = DUR;
+  const slide = () => {
+    let a = +r0.value, b = +r1.value;
+    if (a > b) { [a, b] = [b, a]; }   // handles may cross; treat it as a window
+    T0 = a; T1 = b;
+    render();
+  };
+  r0.addEventListener('input', slide);
+  r1.addEventListener('input', slide);
+  document.getElementById('reset').addEventListener('click', () => {
+    r0.value = 0; r1.value = DUR; slide();
+  });
+
+  document.getElementById('q').addEventListener('input', opponents);
+  timeline(); render();
+}
+
+function render(){ totals(); opponents(); parts(); spells(); excluded(); dimTimeline(); }
+
+function spells(){
+  const ev = counted();
+  const magic = ev.filter(isMagic);
+  const heal = ev.filter(isHeal);
+  document.getElementById('spellcard').classList.remove('hide');
+
+  const sum = (a, d) => a.filter(e => e.dir === d).reduce((s, e) => s + e.amount, 0);
+  const cnt = (a, d) => a.filter(e => e.dir === d).length;
+  // How many casts it took does not matter; the total does.
+  const box = (label, v, cls) =>
+    `<span class="part ${cls}${v ? '' : ' zero'}">${label}<b>${v}</b></span>`;
+
+  document.getElementById('spells').innerHTML = [
+    box('Spell damage dealt', sum(magic, 'out'), 'magic'),
+    box('Spell damage taken', sum(magic, 'in'),  'magic'),
+    box('Healing given',      sum(heal,  'out'), 'heal'),
+    box('Healing received',   sum(heal,  'in'),  'heal'),
+  ].join('');
+
+  // Who was on each end of it -- the point of tracking healing at all.
+  const by = (a, k) => {
+    const t = {};
+    a.forEach(e => { const n = e[k]; if (n && n !== 'You') t[n] = (t[n] || 0) + e.amount; });
+    return Object.entries(t).sort((x, y) => y[1] - x[1])
+      .map(([n, v]) => `<b>${esc(n)}</b> ${v}`).join(', ');
+  };
+  const lines = [];
+  const got = by(heal.filter(e => e.dir === 'in'), 'who');
+  const gave = by(heal.filter(e => e.dir === 'out'), 'target');
+  if (got)  lines.push('Healed by ' + got + '.');
+  if (gave) lines.push('You healed ' + gave + '.');
+  // "Spells seen: Corrupt" tells you nothing about who was casting it.
+  const cast = by(magic.filter(e => e.dir === 'in'), 'who');
+  const hitBy = by(magic.filter(e => e.dir === 'out'), 'target');
+  if (cast)  lines.push('Spell damage from ' + cast + '.');
+  if (hitBy) lines.push('Your spells hit ' + hitBy + '.');
+  const spellNames = [...new Set(magic.map(e => e.ability))].filter(Boolean);
+  if (spellNames.length) lines.push('Spells: ' + spellNames.map(esc).join(', ') + '.');
+  document.getElementById('healwho').innerHTML = lines.join(' ');
+}
+
+function excluded(){
+  const el = document.getElementById('exsum');
+  if (!EXCLUDED.size){ el.innerHTML = ''; return; }
+  const names = [...EXCLUDED];
+  el.innerHTML = `<span>Not counted: ${names.map(esc).join(', ')}</span>
+    <button id="clearex">count everyone</button>`;
+  document.getElementById('clearex').addEventListener('click', () => {
+    EXCLUDED.clear(); render();
+  });
+}
+
+// Keep the chart honest about what the numbers above it are counting: grey
+// out the time outside the window, and dim any hit either the window or an
+// exclusion has taken out.
+function dimTimeline(){
+  const W = 1000, X = t => (t / DUR) * W;
+  const l = document.getElementById('maskL'), r = document.getElementById('maskR');
+  if (l) l.setAttribute('width', Math.max(0, X(T0)).toFixed(1));
+  if (r) {
+    r.setAttribute('x', X(T1).toFixed(1));
+    r.setAttribute('width', Math.max(0, W - X(T1)).toFixed(1));
+  }
+  document.querySelectorAll('#hits rect').forEach(n => {
+    const e = DATA.events[+n.dataset.i];
+    const on = inWindow(e) && !EXCLUDED.has(foe(e)) &&
+               (!FOCUS || foe(e) === FOCUS);
+    n.setAttribute('opacity', on ? '.9' : (FOCUS ? '.08' : '.18'));
+  });
+
+  const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
+  document.getElementById('tnow').textContent =
+    whole ? 'whole fight' : `${fmt(T0)} – ${fmt(T1)}`;
+  document.getElementById('reset').style.visibility = whole ? 'hidden' : 'visible';
+}
+
+/* ---------------- timeline ---------------- */
+function timeline(){
+  const ev = DATA.events, svg = document.getElementById('svg');
+  const W = 1000, H = 150, mid = H/2, pad = 0;
+  const peak = Math.max(...ev.map(e => e.amount), 1);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const X = t => (t/DUR)*(W-2*pad)+pad;
+  // A parry does no damage but still happened, so give it a visible stub.
+  const L = a => Math.max(3, (a/peak)*(mid-pad-16));
+
+  // Running totals across the whole fight, drawn faintly behind the hits so
+  // you can see momentum without losing the individual swings.
+  const sorted = ev.slice().sort((a,b) => a.t - b.t);
+  let co = 0, ci = 0;
+  const cum = sorted.map(e => {
+    if (e.dir === 'out') co += e.amount; else ci += e.amount;
+    return {t:e.t, o:co, i:ci};
+  });
+  const cpeak = Math.max(co, ci, 1);
+  const CY = (v, up) => up ? mid - (v/cpeak)*(mid-pad) : mid + (v/cpeak)*(mid-pad);
+  const path = (sel, up) => {
+    if (!cum.length) return '';
+    let d = `M ${X(0)} ${mid}`;
+    cum.forEach(p => { d += ` L ${X(p.t).toFixed(1)} ${CY(sel(p), up).toFixed(1)}`; });
+    d += ` L ${X(DUR).toFixed(1)} ${CY(sel(cum[cum.length-1]), up).toFixed(1)}`;
+    return d;
+  };
+
+  let bars = '';
+  ev.forEach((e,i) => {
+    const x = X(e.t), h = L(e.amount), up = e.dir === 'out';
+    bars += `<rect x="${(x-2.5).toFixed(1)}" y="${(up ? mid-h : mid).toFixed(1)}"
+      width="5" height="${h.toFixed(1)}" rx="1.5"
+      fill="var(--${up?'out':'in'})" opacity=".9" data-i="${i}"></rect>`;
+  });
+
+  svg.innerHTML =
+    `<rect id="maskL" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
+     <rect id="maskR" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
+     <path d="${path(p=>p.o,true)}"  fill="none" stroke="var(--out)" stroke-width="1.5" opacity=".33"></path>
+     <path d="${path(p=>p.i,false)}" fill="none" stroke="var(--in)"  stroke-width="1.5" opacity=".33"></path>
+     <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--line)" stroke-width="1"></line>
+     <g id="hits">${bars}</g>`;
+
+  const tip = document.getElementById('tip'), tl = document.getElementById('tl');
+  svg.addEventListener('mousemove', ev2 => {
+    const r = ev2.target;
+    if (r.tagName !== 'rect' || !r.dataset.i) { tip.style.opacity = 0; return; }
+    const e = DATA.events[+r.dataset.i];
+    const where = (e.flags||[]).filter(f => !isNoise(f));
+    tip.innerHTML = `${fmt(e.t)} &nbsp; ${e.dir==='out' ? 'you hit' : 'hit by'}
+      <b>${esc(foe(e))}</b> for <b>${e.amount}</b>` +
+      (where.length ? ` · ${esc(where.join(', '))}` : '');
+    const box = tl.getBoundingClientRect();
+    tip.style.left = (ev2.clientX - box.left) + 'px';
+    tip.style.top  = (ev2.clientY - box.top - 10) + 'px';
+    tip.style.opacity = 1;
+  });
+  svg.addEventListener('mouseleave', () => tip.style.opacity = 0);
+}
+
+
+/* ---------------- headline ---------------- */
+function totals(){
+  const ev = counted().filter(isHit);
+  const out = ev.filter(e => e.dir==='out'), inc = ev.filter(e => e.dir==='in');
+  const o = out.reduce((s,e)=>s+e.amount,0), i = inc.reduce((s,e)=>s+e.amount,0);
+  const avg = a => a.length ? Math.round(a.reduce((s,e)=>s+e.amount,0)/a.length) : 0;
+  document.getElementById('totals').innerHTML = `
+    <div class="stat dealt"><span class="k">Damage dealt</span><b>${o.toLocaleString()}</b>
+      <span class="sub">${out.length} hits · ${avg(out)} avg</span></div>
+    <div class="stat taken"><span class="k">Damage taken</span><b>${i.toLocaleString()}</b>
+      <span class="sub">${inc.length} hits · ${avg(inc)} avg</span></div>
+    <div class="stat net"><span class="k">Net</span><b>${o-i>=0?'+':''}${(o-i).toLocaleString()}</b>
+      <span class="sub">${i ? (o/i).toFixed(1)+'× traded' : 'took nothing'}</span></div>`;
+}
+
+/* ---------------- opponents ---------------- */
+function opponents(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const by = {};
+  DATA.events.filter(e => inWindow(e) && isHit(e)).forEach(e => {
+    const n = foe(e);
+    if (!n) return;
+    (by[n] = by[n] || {dealt:0, taken:0, rows:[]});
+    by[n][e.dir === 'out' ? 'dealt' : 'taken'] += e.amount;
+    by[n].rows.push(e);
+  });
+  let names = Object.keys(by).filter(n => !q || n.toLowerCase().includes(q));
+  names.sort((a,b) => (by[b].dealt+by[b].taken) - (by[a].dealt+by[a].taken));
+
+  const el = document.getElementById('opps');
+  if (!names.length){
+    el.innerHTML = `<div class="empty">${q ? 'Nobody by that name.' : 'No hits in this stretch.'}</div>`;
+    return;
+  }
+  // One scale across everyone, so bar lengths compare between rows.
+  const peak = Math.max(1, ...names.map(n => Math.max(by[n].dealt, by[n].taken)));
+
+  el.innerHTML = names.map((n, i) => {
+    const d = by[n], hits = d.rows.length;
+    const off = EXCLUDED.has(n);
+    return `<div class="opp${off ? ' off' : ''}">
+      <div class="opprow">
+      <button class="oppbtn" data-n="${esc(n)}" aria-expanded="false">
+        <span class="rank num">${i + 1}</span>
+        <span class="badge" style="background:${tint(n)}">${esc(initial(n))}</span>
+        <span class="oppname">${esc(n)}<span class="hits">${hits} hit${hits===1?'':'s'}</span></span>
+        <span class="bars">
+          <span class="half l"><span class="fill" style="width:${(d.taken/peak)*100}%"></span></span>
+          <span class="spine"></span>
+          <span class="half r"><span class="fill" style="width:${(d.dealt/peak)*100}%"></span></span>
+        </span>
+        <span class="oppnums">
+          <span class="${d.taken?'t':'z'}">${d.taken || '—'}</span>
+          <span class="${d.dealt?'d':'z'}">${d.dealt || '—'}</span>
+        </span>
+      </button>
+      <button class="ex" data-x="${esc(n)}" aria-pressed="${off}"
+              title="${off ? 'Count ' + esc(n) + ' again' : 'Leave ' + esc(n) + ' out of the totals'}"
+        >${off ? '+' : '\u00d7'}</button>
+      </div>
+      <div class="detail hide" data-d="${esc(n)}">${table(d.rows)}</div>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
+    const n = b.dataset.x;
+    EXCLUDED.has(n) ? EXCLUDED.delete(n) : EXCLUDED.add(n);
+    render();
+  }));
+
+  el.querySelectorAll('.oppbtn').forEach(b => b.addEventListener('click', () => {
+    const n = b.dataset.n;
+    const d = el.querySelector(`.detail[data-d="${CSS.escape(n)}"]`);
+    const open = !d.classList.contains('hide');
+    d.classList.toggle('hide', open);
+    b.setAttribute('aria-expanded', String(!open));
+
+    // Opening a name focuses it; closing it again gives the whole fight back.
+    FOCUS = open ? null : n;
+    el.querySelectorAll('.opp').forEach(o => o.classList.remove('focus'));
+    if (FOCUS) b.closest('.opp').classList.add('focus');
+    dimTimeline();
+  }));
+
+  // A rebuild throws the rows away, so put the marker back on the focused one.
+  if (FOCUS) {
+    const b = el.querySelector(`.oppbtn[data-n="${CSS.escape(FOCUS)}"]`);
+    if (b) b.closest('.opp').classList.add('focus');
+    else FOCUS = null;
+  }
+}
+
+// A stable colour per name, so the same player looks the same every report.
+function tint(name){
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `linear-gradient(145deg,hsl(${h} 62% 68%),hsl(${(h + 26) % 360} 58% 52%))`;
+}
+function initial(name){
+  const m = name.replace(/[^A-Za-z0-9]/g, '');
+  return (m[0] || '?').toUpperCase();
+}
+
+function table(rows){
+  const body = rows.slice().sort((a,b)=>a.t-b.t).map(r => {
+    const flags = (r.flags||[]).filter(f => !isNoise(f));
+    const where = flags.filter(isBody);
+    const how   = flags.filter(f => !isBody(f));
+    return `<tr>
+      <td class="num">${fmt(r.t)}</td>
+      <td class="who">${r.dir==='out' ? 'you hit' : 'hit you'}</td>
+      <td class="n ${r.dir}">${r.amount}</td>
+      <td>${esc(where.join(', ')) || '—'}</td>
+      <td>${how.map(m => `<span class="chip">${esc(m)}</span>`).join('')}</td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr>
+    <th>time</th><th></th><th style="text-align:right">dmg</th><th>where</th><th></th>
+  </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/* ---------------- how hits landed ---------------- */
+function parts(){
+  const hits = counted().filter(e => e.dir === 'out' && isHit(e));
+  const tally = {};
+  let clean = {n: 0, dmg: 0};
+
+  hits.forEach(e => {
+    const flags = (e.flags || []).filter(f => !isNoise(f));
+    const how = flags.filter(isOutcome);
+    if (!how.length) {
+      // Landed on a body part and nothing got in the way.
+      clean.n++; clean.dmg += e.amount;
+      return;
+    }
+    // A swing can be stopped two ways at once ("0[Parry][Handle]"), so it is
+    // counted under each rather than forced into one.
+    how.forEach(f => {
+      tally[f] = tally[f] || {n: 0, dmg: 0};
+      tally[f].n++; tally[f].dmg += e.amount;
+    });
+  });
+
+  const TONE = {Parry: 'parry', Handle: 'handle'};
+  const LABEL = {Parry: 'Parried hits', Handle: 'Handle hits',
+                 Blocked: 'Blocked', Equipment: 'Equipment hits'};
+  // A parried swing always does nothing, so its damage is noise -- count only.
+  const COUNT_ONLY = ['Parry'];
+  // "1 hit \u00b7 12" leaves you guessing what 12 is. Say it.
+  const chip = (label, d, cls, countOnly) =>
+    `<span class="part${cls ? ' ' + cls : ''}${d.n ? '' : ' zero'}">${esc(label)}<b>${
+      d.n} hit${d.n === 1 ? '' : 's'}${
+      countOnly ? '' : ' \u00b7 ' + d.dmg + ' dmg'}</b></span>`;
+
+  const el = document.getElementById('parts');
+
+  // Every chip above is a swing of yours. This one is the other way round:
+  // a hit you took whose damage your own counter cut down.
+  const countered = counted().filter(e =>
+    isHit(e) && e.dir === 'in' && (e.flags || []).includes('Counter Reduced'));
+  const trophy =
+    `<span class="part trophy${countered.length ? '' : ' zero'}">` +
+    `<span class="lbl">Counter reduce hits received</span>` +
+    `<b>${countered.length}</b></span>`;
+
+  // Every category is shown whether or not it happened -- a row that vanishes
+  // reads as the tool having missed something rather than as a zero.
+  const pick = f => chip(LABEL[f], tally[f] || {n: 0, dmg: 0},
+                         TONE[f] || '', COUNT_ONLY.includes(f));
+
+  // Landed, stopped by them, stopped by your own grip -- then the odds and ends.
+  el.innerHTML =
+    `<div class="prow">${trophy}</div>` +
+    `<div class="prow">${chip('Clean hits', clean, 'main')}${pick('Parry')}${pick('Handle')}</div>` +
+    `<div class="prow">${pick('Equipment')}${pick('Blocked')}</div>`;
+
+  const stopped = hits.length - clean.n;
+  document.getElementById('defnote').textContent = stopped
+    ? `${stopped} of ${hits.length} swings were parried, blocked, or caught armour or the handle.`
+    : '';
+}
+</script>
+<script>
+// Data baked in at build time so this file works on its own.
+window.__BAKED__ = {"source": "Mortal Online 2 2026.08.14 - 14.10.03.03.DVR-00.00.47.561-00.02.59.720.mp4", "duration": 132.3, "fps_sampled": 2.0, "frames": 265, "ocr_lines": 2923, "players": ["Aguda", "AzogsMom", "BIGBROker", "Cummander", "Faarau", "Hallneku", "Henrik", "KIDNEIN", "Lonedinka", "LurkinKhalid", "PvPoppins", "Raviolo", "Sandosha", "SirSmallBoy", "Soeasy", "Straponid", "SunkenMT", "SunkenPuAT", "SunkenRAT", "gorrotoa"], "events": [{"t": 0.0, "ft": 0.0, "exact": false, "kind": "hit", "dir": "in", "who": "KIDNEIN", "target": "You", "amount": 17, "ability": "arrow", "flags": ["Torso"], "raw": "[Combat] KIDNEIN's arrow hit you for 17[Torso]", "seen": 8}, {"t": 4.5, "ft": 5.5, "exact": true, "kind": "hit", "dir": "in", "who": "BIGBROker", "target": "You", "amount": 19, "ability": "Earthquake", "flags": [], "raw": "[14:07:32] [Combat] BIGBROker's Earthquake hit you for 19", "seen": 14}, {"t": 5.5, "ft": 5.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Cummander", "amount": 30, "ability": null, "flags": ["Right Limb"], "raw": "[14:07:33] [Combat] You hit Cummander for 30[Right Limb]", "seen": 14}, {"t": 7.5, "ft": 7.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "PvPoppins", "amount": 0, "ability": null, "flags": ["Torso"], "raw": "[14:07:35] [Combat] You hit PvPoppins for O[Torso]", "seen": 13}, {"t": 9.5, "ft": 9.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Lonedinka", "amount": 21, "ability": null, "flags": ["Torso"], "raw": "[14:07:37][Combat] You hit' Lonedinka for 21[Torso]", "seen": 16}, {"t": 10.5, "ft": 10.5, "exact": true, "kind": "hit", "dir": "in", "who": "PvPoppins", "target": "You", "amount": 27, "ability": null, "flags": ["Right Limb"], "raw": "[14:07:38] [Combat] PvPoppins hits you for 27[Right Limb]", "seen": 15}, {"t": 10.5, "ft": 10.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Lonedinka", "amount": 17, "ability": null, "flags": ["Left Limb"], "raw": "[14:07:38] [Combat] You hit Lonedinka for 17[Left Limb]", "seen": 15}, {"t": 12.5, "ft": 12.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 40, "ability": null, "flags": ["Head"], "raw": "[14:07:40] [Combat] You hit gorrotoa for 40[Head]", "seen": 18}, {"t": 14.5, "ft": 15.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 34, "ability": null, "flags": ["Torso"], "raw": "[14:07:42] [Combat] You hit gorrotoa for 34[Torso]", "seen": 20}, {"t": 16.5, "ft": 16.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:07:44] [Combat] You hit gorrotoa forO[Parry]", "seen": 21}, {"t": 17.5, "ft": 17.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 28, "ability": null, "flags": ["Torso"], "raw": "[14:07:45] [Combat] You hit gorrotoa for 28[Torso]", "seen": 21}, {"t": 18.5, "ft": 18.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "PvPoppins", "amount": 13, "ability": null, "flags": ["Left Limb"], "raw": "[14:07:46] [Combat] You hit PvPoppins for 13[Left Limb]", "seen": 23}, {"t": 21.5, "ft": 21.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 23, "ability": null, "flags": ["Torso"], "raw": "[14:07:49] [Combat] You hit gorrotoa for 23 [Torso]", "seen": 19}, {"t": 23.5, "ft": 23.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 3, "ability": null, "flags": ["Torso"], "raw": "[14:07:51] [Combat] You hit gorrotoa for 3[Torso]", "seen": 18}, {"t": 24.5, "ft": 24.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Faarau", "amount": 12, "ability": null, "flags": ["Equipment"], "raw": "[14:07:52] [Combat] You hit Faarau for 12[Equipment]", "seen": 15}, {"t": 26.5, "ft": 26.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 53, "ability": null, "flags": ["Lower Body"], "raw": "[14:07:54] [Combat] You hit SunkenRat for 53[Lower Body]", "seen": 15}, {"t": 28.5, "ft": 28.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 0, "ability": null, "flags": ["Right Limb"], "raw": "You hit SunkenRAT for O[Right Limb]", "seen": 6}, {"t": 29.5, "ft": 29.0, "exact": true, "kind": "hit", "dir": "in", "who": "Straponid", "target": "You", "amount": 53, "ability": null, "flags": ["Head"], "raw": "[14:07:57] [Combat] Straponid hits you for 53[Head]", "seen": 13}, {"t": 29.5, "ft": 29.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenMT", "amount": 0, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit SunkenMT for O[Right Limb]", "seen": 5}, {"t": 30.5, "ft": 31.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 17, "ability": null, "flags": ["Torso"], "raw": "[14:07:58] [Combat] You hit SunkenRAT for.17[Torso]", "seen": 12}, {"t": 32.5, "ft": 32.5, "exact": true, "kind": "hit", "dir": "in", "who": "Straponid", "target": "You", "amount": 27, "ability": null, "flags": ["Left Limb"], "raw": "[14:08:00] [Combat] Straponid hits you for 27 [Left Limb]", "seen": 17}, {"t": 33.0, "ft": 33.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 35, "ability": null, "flags": ["Head"], "raw": "[Combat] You hit SunkenRAT for 3S[Head]", "seen": 18}, {"t": 34.0, "ft": 34.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 28, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit SunkenRAT for 28[Right Limb]", "seen": 13}, {"t": 34.5, "ft": 34.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenMT", "amount": 28, "ability": null, "flags": ["Right Limb"], "raw": "You hit SunkenMT for 28[Right Limb]", "seen": 4}, {"t": 37.5, "ft": 39.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 38, "ability": null, "flags": ["Torso"], "raw": "[14:08:05] [Combat] You hit SunkenRat for 38[Torso]", "seen": 18}, {"t": 39.5, "ft": 39.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenPuAT", "amount": 28, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit SunkenPuAT for 28[Right Limb]", "seen": 3}, {"t": 39.5, "ft": 40.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "AzogsMom", "amount": 57, "ability": null, "flags": ["Torso"], "raw": "[14:08:07] [Combat] You hit AzogsMom for 57[Torso]", "seen": 16}, {"t": 41.5, "ft": 42.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "LurkinKhalid", "amount": 27, "ability": null, "flags": ["Right Limb"], "raw": "[14:08:09] [Combat] You hit LurkinKhalid for 27 [Right Limb]", "seen": 14}, {"t": 44.5, "ft": 45.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Aguda", "amount": 1, "ability": null, "flags": ["Blocked", "Handle"], "raw": "[14:08: 12] [Combat] You hit Aguda for 1 [Blocked] [Handle]", "seen": 15}, {"t": 45.5, "ft": 46.0, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 33, "ability": null, "flags": ["Torso"], "raw": "[14:08: 13] [Combat] SirSmallBoy hits you for 33 [Torso]", "seen": 19}, {"t": 47.5, "ft": 47.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 43, "ability": null, "flags": ["Right Limb"], "raw": "[14:08: 15] [Combat] You hit BIGBROker for 43 [Right Limb]", "seen": 19}, {"t": 48.5, "ft": 48.5, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:08: 16] [Combat] SirSmallBoy hits you for O[Parry]", "seen": 17}, {"t": 49.0, "ft": 49.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 39, "ability": null, "flags": ["Right Limb"], "raw": "You hit BIGBROker for 39[Right", "seen": 19}, {"t": 50.5, "ft": 50.5, "exact": true, "kind": "hit", "dir": "in", "who": "PvPoppins", "target": "You", "amount": 4, "ability": null, "flags": ["Left Limb", "Counter Reduced"], "raw": "[14:08: 18] [Combat] PvPoppins hits you for 4[Left Limb] [Counter Reduced]", "seen": 17}, {"t": 50.5, "ft": 51.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SirSmallBoy", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:08:18] [Combat] You hit SirSmallBoy for O[Parry]", "seen": 18}, {"t": 53.5, "ft": 55.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SirSmallBoy", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:08:21] [Combat] You hit SirSmallBoy for 0[Parry]", "seen": 12}, {"t": 55.5, "ft": 55.0, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 46, "ability": null, "flags": ["Right Limb"], "raw": "[14:08:23] [Combat] SirSmallBoy hits you for 46[Right Limb]", "seen": 18}, {"t": 57.0, "ft": 57.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 33, "ability": null, "flags": ["Torso"], "raw": "[Combat] You hit BIGBROker for 33 [Torso]", "seen": 14}, {"t": 57.5, "ft": 57.5, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:08:25] [Combat] SirSmallBoy hits you for O[Parry]", "seen": 22}, {"t": 58.5, "ft": 58.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 45, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit BIGBROker for 45 [Right Limb]", "seen": 25}, {"t": 60.5, "ft": 60.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 34, "ability": null, "flags": ["Head"], "raw": "[Combat] You hit BIGBROker for 34[Head]", "seen": 21}, {"t": 62.5, "ft": 61.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Soeasy", "amount": 41, "ability": null, "flags": ["Torso"], "raw": "[14:08:30] [Combat] You hit Soeasy for 41 [Torso]", "seen": 18}, {"t": 63.5, "ft": 63.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Soeasy", "amount": 33, "ability": null, "flags": ["Right Limb"], "raw": "[14:08:31] [Combat] You hit Soeasy for 33 [Right Limb]", "seen": 26}, {"t": 64.5, "ft": 65.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Soeasy", "amount": 32, "ability": null, "flags": ["Torso", "Sting"], "raw": "[14:08:32] [Combat] You hit Soeasy for 32[Torso][Sting]", "seen": 22}, {"t": 65.5, "ft": 65.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Soeasy", "amount": 21, "ability": null, "flags": ["Torso", "Sting"], "raw": "[14:08:33] [Combat] You hit Soeasy for 21[Torso] [Sting]", "seen": 23}, {"t": 70.0, "ft": 70.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "BIGBROker", "amount": 24, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit BIGBROker for 24[Right Limb]", "seen": 16}, {"t": 71.5, "ft": 71.5, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 0, "ability": null, "flags": ["Parry"], "raw": "[14:08:39] [Combat] SirSmallBoy hits you for O[Parry]", "seen": 16}, {"t": 77.5, "ft": 77.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Hallneku", "amount": 19, "ability": null, "flags": ["Right Limb", "Sting"], "raw": "[14:08:45] [Combat] You hit Hallneku for 19[Right Limb] [Sting]", "seen": 15}, {"t": 78.5, "ft": 78.5, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 47, "ability": null, "flags": ["Torso"], "raw": "[14:08:46] [Combat] SirSmallBoy hits you for,47[Torso]", "seen": 17}, {"t": 78.5, "ft": 78.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "Hallneku", "amount": 20, "ability": null, "flags": ["Torso", "Sting"], "raw": "[Combat] You hit Hallneku for 20[Torso] [Sting]", "seen": 8}, {"t": 79.5, "ft": 79.5, "exact": false, "kind": "hit", "dir": "in", "who": "KIDNEIN", "target": "You", "amount": 0, "ability": null, "flags": ["Torso"], "raw": "[Combat] KIDNEIN hits you for O[Torso]", "seen": 17}, {"t": 84.5, "ft": 84.5, "exact": true, "kind": "heal", "dir": "in", "who": "Sandosha", "target": "You", "amount": 21, "ability": "Lesser Heal", "flags": [], "raw": "[14:08:52] [Combat] Sandosha's Lesser Heal heals you for 21", "seen": 19}, {"t": 87.5, "ft": 87.5, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 0, "ability": null, "flags": ["Head"], "raw": "[14:08:55] [Combat] SirSmallBoy hitsyou for 0[Head]", "seen": 15}, {"t": 89.5, "ft": 89.0, "exact": true, "kind": "hit", "dir": "in", "who": "SirSmallBoy", "target": "You", "amount": 2, "ability": null, "flags": ["Torso"], "raw": "[14:08:57] [Combat] SirSmallBoy hits you for 2 [Torso]", "seen": 19}, {"t": 92.0, "ft": 92.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 18, "ability": null, "flags": ["Left Limb"], "raw": "[Combat] You hit SunkefiRAT for 18[Left Limb]", "seen": 14}, {"t": 92.5, "ft": 92.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 25, "ability": null, "flags": ["Torso", "Sting"], "raw": "[Combat] You hit SunkenRAT for 25 [Torso] [Sting]", "seen": 9}, {"t": 93.5, "ft": 93.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenMT", "amount": 13, "ability": null, "flags": [], "raw": "You hit SunkenMT for 13[Right", "seen": 4}, {"t": 93.5, "ft": 95.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 13, "ability": null, "flags": ["Right Limb", "Sting"], "raw": "[14:09:01] [Combat] You hit SunkenRAT for 13[Right Limb] [Sting]", "seen": 17}, {"t": 95.5, "ft": 95.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenMT", "amount": 18, "ability": null, "flags": ["Left Limb"], "raw": "You hit SunkenMT for 18[Left Limb]", "seen": 5}, {"t": 96.0, "ft": 96.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenMT", "amount": 19, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit SunkenMT for 19[Right Limb]", "seen": 6}, {"t": 96.5, "ft": 96.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 19, "ability": null, "flags": ["Right Limb"], "raw": "You hit SunkenRAT for 19[Right Limb]", "seen": 50}, {"t": 97.5, "ft": 97.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 24, "ability": null, "flags": ["Torso"], "raw": "[14:09:05] [Combat] You hit SunkenRAT for 24[Torso]", "seen": 36}, {"t": 99.5, "ft": 99.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "Henrik", "amount": 45, "ability": null, "flags": ["Torso"], "raw": "[14:09:07] [Combat] You hit Henrik for 45 [Torso]", "seen": 41}, {"t": 99.5, "ft": 99.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenPuAT", "amount": 13, "ability": null, "flags": ["Right Limb", "Sting"], "raw": "[Combat] You hit SunkenPuAT for 13 [Right Limb] [Sting]", "seen": 5}, {"t": 99.5, "ft": 99.5, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenPuAT", "amount": 19, "ability": null, "flags": ["Right Limb"], "raw": "[Combat] You hit SunkenPuAT for 19[Right Limb]", "seen": 3}, {"t": 100.5, "ft": 100.5, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 20, "ability": null, "flags": ["Torso"], "raw": "[14:09:08] [Combat] You hit SunkenRAT for 20[Torso]", "seen": 38}, {"t": 106.0, "ft": 106.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 13, "ability": null, "flags": ["Right Limb", "Sting"], "raw": "[Combat] You hit SunkenRAT for 13 [Right Limb] [Sting]", "seen": 16}, {"t": 108.0, "ft": 108.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "Raviolo", "amount": 0, "ability": null, "flags": ["Head", "Handle"], "raw": "[Combat] You hit Raviolo for O[Head] [Handle]", "seen": 5}, {"t": 111.0, "ft": 111.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 24, "ability": null, "flags": ["Torso"], "raw": "[Combat] You hit SunkenRAT for 24[Torso]", "seen": 20}, {"t": 113.0, "ft": 113.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "Henrik", "amount": 45, "ability": null, "flags": ["Torso"], "raw": "[Combat] You hit Henrik for 45[Torso]", "seen": 19}, {"t": 116.0, "ft": 116.0, "exact": false, "kind": "hit", "dir": "out", "who": "You", "target": "SunkenRAT", "amount": 20, "ability": null, "flags": ["Torso"], "raw": "You hit SunkenRAT for 20[Torso]", "seen": 15}, {"t": 118.5, "ft": 118.0, "exact": true, "kind": "hit", "dir": "out", "who": "You", "target": "gorrotoa", "amount": 48, "ability": null, "flags": ["Head"], "raw": "[14:09:26] [Combat] You hit gorrotoa for 48[Head]", "seen": 29}]};
+</script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+# MO2 Fight Log
+
+Reads Mortal Online 2's combat log out of a gameplay recording and turns it
+into numbers you can sort and chart.
+
+MO2 doesn't write a combat log to disk — it only draws it on screen — so the
+data has to be read off the video frames.
+
+## Use it
+
+**Drag your video onto `DROP-VIDEO-HERE.bat`.**
+
+That's the whole thing. It reads the clip, builds a report named after the
+video, and opens it. Roughly 40 seconds per minute of footage on a machine
+with cores to spare, more on a smaller one -- the work fans out across them.
+
+If you'd rather run it by hand:
+
+```
+python mo2log.py "clip.mp4" --fps 2 --out fight.json
+python make_report.py fight.json
+```
+
+## Accuracy
+
+Measured against hits counted by hand from two clips:
+
+| Target | Actual | Read | Result |
+|---|---|---|---|
+| Aims | 5 hits / 187 | 5 hits / 187 | exact |
+| Qlade | 10 hits / 194 | 10 hits / 194 | exact |
+| BIGBROker | 7 hits / 218 | 7 hits / 218 | exact, and in the right order |
+
+**Damage totals are more reliable than swing counts**, and the tool undercounts
+rather than over-counts when it is wrong -- every rule below drops a doubtful
+reading instead of guessing at it.
+
+Both clips are 1080p with the log unobstructed. Heavier compression, a smaller
+UI scale or a busier log will all read worse; treat 100% as the ceiling rather
+than the expectation, and hand-check a clip before trusting a number that
+matters.
+
+## Options
+
+- `--fps 3` — sample more often. Catches fast-scrolling lines, runs slower.
+- `--crop x,y,w,h` — where the log sits, in pixels. Default assumes bottom-left,
+  covering the left 52% and bottom 26% of the frame.
+- `--players Name1,Name2` — supply the real names. OCR spells them several ways
+  otherwise, and this snaps every reading to the right one.
+- `--min-seen N` — how many frames an event must appear in to count. Left
+  alone it works this out per clip; override only to debug.
+- `--keep-frames` — leave the extracted frames on disk to see what OCR was given.
+
+## If you get very few events
+
+Check the crop first:
+
+```
+ffmpeg -i yourclip.mp4 -vf "crop=998:280:0:756" -frames:v 1 crop_check.png
+```
+
+Open that PNG. If the log isn't fully inside it, pass your own `--crop`
+(the numbers are `width:height:x:y` for ffmpeg, but `x,y,w,h` for `--crop`).
+
+## How it works, and the things that broke
+
+**AV1 clips.** Most capture tools now produce AV1, which ffmpeg's software
+decoder chokes on ("no sequence header"). Hardware decoding is tried first.
+
+**Preprocessing depends on the scene.** Dark backgrounds need upscale plus
+contrast; bright ones (sand, snow) need adaptive thresholding, because white
+text on pale ground can't be separated by contrast alone. Using the wrong one
+destroys the text — thresholding a dark scene lost every timestamp. The crop's
+brightness is measured and the method chosen to match.
+
+**Damage numbers fail two opposite ways.** `for 4S[Torso]` is 45 with a letter
+misread as a digit; `for 225Arms]` is 22 with the bracket misread as a digit.
+The surviving bracket is what tells them apart.
+
+**Names come back different every frame** (`Qiade`, `Qlade`). All readings are
+clustered by similarity and collapsed onto the most frequent spelling, with
+`i`/`l` folded together since that's the most confused pair in this font.
+
+**OCR emits bytes Windows' default codec can't decode.** That silently killed
+whole frames and lost whichever part of the fight they covered. Everything
+speaks UTF-8 explicitly now.
+
+**Healing and spells were being thrown away.** The parser only knew
+"X hit Y for N", so `Karyna's Lesser Heal heals you for 24` matched nothing and
+vanished -- along with the healer, who never appeared as a participant at all
+if healing was all she did. Worse, the incoming pattern makes the hit verb
+optional, so a line ending "...heals you for 19" was one small change away from
+being read as 19 points of damage from somebody called "heals". Healing now
+parses as its own kind of event, kept out of the damage figures, and abilities
+that are not weapon nouns count as spell damage. One clip gave up 96 healing
+and another 129 that had simply been discarded.
+
+**The game draws combat text twice.** MO2 paints damage numbers over the
+world as well as writing them to the log, and both read as combat lines. That
+makes a generous crop worse than a tight one: widening the default by 100px
+upward swept in the floating numbers and invented hits on a hand-checked clip,
+while a crop 3px too high clipped real ones. Reading the log is therefore
+sensitive to crop geometry in both directions, which is why the tuned default
+is used whenever it works.
+
+**Finding the log on someone else's screen.** The default crop is expressed as
+fractions of the frame, so other resolutions are fine, but a moved chat panel
+or an unusual UI scale is not. The tool now peeks at four frames first; only if
+no combat text is where it expects does it OCR whole frames, keep the lines
+shaped like combat, and take their bounding box. The log is a left-aligned
+column, so lines whose left edge sits near the common one are the log and the
+floating damage numbers scattered elsewhere are not. A detected crop reads a
+little worse than the tuned one -- roughly 95% against 100% on the checked clip
+-- so it is a fallback, never a replacement.
+
+**Half the time went on one core.** Preprocessing and OCR both handle each
+frame independently, but ran one after another in a single thread: on a
+16-core machine preprocessing alone was 50% of the runtime and OCR another
+26%, with the rest of the box idle. Both now fan out across cores, which
+roughly halves the wall clock and changes no number.
+
+Two other ideas measured and rejected. Writing the temporary frames with
+ffmpeg's fastest PNG setting saved nothing -- the cost there is decoding AV1,
+not encoding PNGs, since a 5-minute 60fps clip means decoding 18,000 frames to
+keep 600. And halving the upscale before OCR, which would have cut 56% of the
+pixels out of both slow stages, took a hand-checked clip from 100% to 79%:
+`24` read as `4`, three hits lost entirely. The 3x upscale is load-bearing.
+
+**A fixed noise threshold deleted most of a fight.** Requiring three readings
+before an event counts works when a line is read 20 to 40 times, which is what
+both hand-checked clips do. A fast-scrolling fight is not like that -- one
+30-second clip caught each line once or twice, and the rule quietly took it
+from 139 damage down to nothing while every validation clip stayed at 100%. How
+often a line gets read is a property of the clip, not a constant, so the cutoff
+is now a quarter of whatever is typical for that clip: 5 where lines are read
+23 times, 1 where they are read twice. Found only by running the packaged build
+against a clip that had not been touched in hours -- agreeing with two similar
+clips is not the same as being right.
+
+**A repeated hit vanished into the first one.** Readings that lost their
+timestamp were folded into whichever timestamped hit shared their damage and
+target, no matter how far apart -- so hitting someone for 30 twice in a fight
+recorded one hit. The fix is to ask whether the timestamped line was still on
+screen when the untimed reading was taken, which only became a meaningful
+question once the two clocks agreed; attempted against the old skew it produced
+phantoms and was abandoned. Rescued hits are then held to a higher bar than
+timestamped ones: a real one leaves a full line's worth of readings behind it,
+while the stragglers that fall just past the window come in threes and fours.
+On the hand-checked clip the genuine rescue was seen 26 times and every false
+one 3 to 5, so there is a wide gap to cut in. This took the same clip from 92%
+to 100%.
+
+**Two clocks, six seconds apart.** Lines whose `[hh:mm:ss]` survives OCR carry
+wall time; the rest carry the frame they were read from. Reconciling them means
+knowing when the recording started, and every timestamped line offers an
+estimate -- but a line is read from every frame across its ten seconds on
+screen, all carrying the same timestamp, and each later reading implies an
+earlier start. Averaging over readings put the estimate about half a window
+out, so every timestamped hit floated ~6s late and drifted past the untimed
+hits around it. A hand-checked fight came back with two hits transposed, which
+is how it surfaced -- the totals were right, only the order was wrong. Each
+line now collapses to its first sighting before the median is taken.
+
+**A single bad frame invented a hit.** OCR read `for99[Left Limb]` off one
+frame of a fight where no 99 was ever dealt, and it went straight into the
+totals. The defence was already in the data and unused: a real log line sits on
+screen for seconds and is read from 12 to 40 frames, while a fabrication
+appears exactly once. Events now have to be seen in at least three frames
+(`--min-seen`). On the hand-counted clip this removes nothing at all, and on
+the clip that reported the phantom it removed three readings seen once or
+twice -- with the lowest surviving event seen 12 times, so the threshold sits
+in a wide empty gap rather than on a boundary.
+
+**Strict patterns threw away legible text.** The parse gate required a literal
+digit after `for`, a space after `for`, and the exact word `you`. OCR had in
+fact read `You hit HighPsyche for O[Torso]` and `for18[Right Limb]` correctly;
+the patterns rejected them. On a heavily degraded clip that discarded 100 of
+937 lines. Matching each surrounding word as a small class -- `for`/`foi`/`f0r`,
+`you`/`ypu` -- with tolerant separators recovered 64% of them.
+
+**Which then over-corrected.** Letting the separator vanish meant a stray
+letter in the gap got read as part of the number: `forz33` became 233, since
+`z` doubles for `2`. Stripping any leading letter fixed that and immediately
+broke `for S6`, where the `S` really is a `5` -- turning 56 into 6. The space
+is the discriminator: noise crowds against `for`, a real number keeps its
+space and merely has a letter-shaped digit inside it. Ground truth caught
+this; the parse-rate metric alone called it an improvement.
+
+**Ranged attacks name a weapon, not a player.** MO2 writes `Ith's arrow hit
+you for 19`. The possessive pattern demanded a space after the apostrophe and
+OCR routinely loses it, so the line fell through to the generic one, which read
+`arrow` as the attacker -- inventing a player *and* double-counting the hit
+against the real archer. Incoming damage ran 17% high. Weapon nouns can no
+longer be names, and a hit whose owner was lost merges into a named hit
+carrying the same damage nearby.
+
+**A misreading that repeats becomes a player.** Names seen three or more times
+are taken as real, on the assumption that misreadings are random and will not
+recur. Systematic ones are not random: `CLAUDEMASTER` read as `CLAUDEMASrER`
+on every single frame, cleared the bar, and split one player's damage across
+two names. Candidate names are now folded against each other first, keeping
+whichever spelling was seen most.
+
+**Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
+Explorer resolves that differently from a terminal, so the tool worked when run
+by hand and died on `No module named PIL` when a video was dropped on it. It
+now picks the first interpreter that can actually import what it needs.
+
+**One PowerShell process, not one per frame.** Process startup dominated the
+runtime — batching took a clip from 4–5 minutes to about 90 seconds.
+
+## Giving it to someone else
+
+`MO2-Fight-Log.zip` on the Desktop is a self-contained build: Python, Pillow,
+numpy, ffmpeg and the report template all bundled. The recipient unzips it and
+drags a video onto `MO2FightLog.exe` -- nothing to install. Reports land next
+to their video rather than next to the program.
+
+**Windows only.** The OCR is the engine built into Windows, which is why there
+is nothing to install and also why it cannot be ported without swapping in
+Tesseract.
+
+Rebuild it after changing anything:
+
+```
+python -m PyInstaller --noconfirm --distpath dist --workpath build MO2FightLog.spec
+```
+
+## Files
+
+| File | Role |
+|---|---|
+| `mo2log.py` | The pipeline. Run this. |
+| `preprocess.py` | Picks and applies the right image treatment |
+| `parse.py` | OCR text to events; name clustering, dedupe |
+| `ocr_batch.ps1` | OCRs a whole folder in one process |
+| `ocr_win.ps1` | Single-image OCR, kept for debugging |
+| `DROP-VIDEO-HERE.bat` | Drag a video onto this. Does everything. |
+| `make_report.py` | Bakes a JSON into a standalone HTML report |
+| `dump_raw.py` | Every raw reading of one name, before dedupe -- for debugging |
+| `find_log.ps1` | OCRs whole frames with coordinates, to locate the log |
+| `dump_lines.py` | Every distinct line OCR reads, for finding unknown shapes |
+| `profile_run.py` | Times each stage separately, to find the slow one |
+| `viewer.html` | Drop a JSON here instead, if you prefer |

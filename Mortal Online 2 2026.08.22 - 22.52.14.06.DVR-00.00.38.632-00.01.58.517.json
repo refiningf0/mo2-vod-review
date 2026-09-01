@@ -1,0 +1,405 @@
+{
+ "source": "Mortal Online 2 2026.08.22 - 22.52.14.06.DVR-00.00.38.632-00.01.58.517.mp4",
+ "duration": 80.0,
+ "fps_sampled": 2.0,
+ "frames": 160,
+ "ocr_lines": 1901,
+ "players": [
+  "Aims",
+  "DaddyASMR",
+  "Esarhaddon",
+  "Handiclap",
+  "ManaMeat",
+  "Nopes",
+  "Qiade",
+  "SirCakePharts",
+  "TerrorBird"
+ ],
+ "events": [
+  {
+   "t": 16.5,
+   "ft": 16.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Handiclap",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:51:10] [Combat] You hit Handiclap for 30[Right Limb]",
+   "seen": 16
+  },
+  {
+   "t": 19.5,
+   "ft": 27.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "SirCakePharts",
+   "amount": 68,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:51: 13] [Combat] You hit SirCakePharts for 68[Torso]",
+   "seen": 15
+  },
+  {
+   "t": 20.5,
+   "ft": 20.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Handiclap",
+   "target": "You",
+   "amount": 27,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:51:14] [Combat] Handiclap hits you for 27[Right Limb]",
+   "seen": 20
+  },
+  {
+   "t": 23.0,
+   "ft": 23.0,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Nopes",
+   "amount": 57,
+   "ability": null,
+   "flags": [
+    "Head"
+   ],
+   "raw": "[Combat] You hit Nopes for 57[Head]",
+   "seen": 15
+  },
+  {
+   "t": 25.0,
+   "ft": 25.0,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 27,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[Combat] You hit Qiade for 27[Torso]",
+   "seen": 20
+  },
+  {
+   "t": 25.5,
+   "ft": 24.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Qiade",
+   "target": "You",
+   "amount": 11,
+   "ability": null,
+   "flags": [
+    "Equipment",
+    "Armor Pierced"
+   ],
+   "raw": "[22:51: 19] [Combat] Qlade hits you for 11 [Equipment] [Armor Pierced]",
+   "seen": 14
+  },
+  {
+   "t": 25.5,
+   "ft": 24.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Handiclap",
+   "target": "You",
+   "amount": 1,
+   "ability": null,
+   "flags": [
+    "Equipment",
+    "Handle"
+   ],
+   "raw": "[22:51: 19] [Combat] Handiclap hits you for 1 [Equipment] [Handle]",
+   "seen": 17
+  },
+  {
+   "t": 27.5,
+   "ft": 27.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Handiclap",
+   "target": "You",
+   "amount": 7,
+   "ability": null,
+   "flags": [
+    "Torso",
+    "Handle"
+   ],
+   "raw": "[22:51:21] [Combat] Handiclap hits you for 7[Torso] [Handle]",
+   "seen": 25
+  },
+  {
+   "t": 27.5,
+   "ft": 27.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Handiclap",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:51:21] [Combat] You hit Handiclap for 30[Right Limb]",
+   "seen": 22
+  },
+  {
+   "t": 32.0,
+   "ft": 32.0,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "DaddyASMR",
+   "amount": 31,
+   "ability": null,
+   "flags": [
+    "Left Limb"
+   ],
+   "raw": "[Combat] You hit DaddyASMR for 31 [Left Limb]",
+   "seen": 26
+  },
+  {
+   "t": 33.5,
+   "ft": 33.5,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 25,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[Combat] You hit Qiade for 25[Right Limb]",
+   "seen": 28
+  },
+  {
+   "t": 34.5,
+   "ft": 34.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Nopes",
+   "target": "You",
+   "amount": 28,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:51:28] [Combat] Nopes hits you for 28[Right Limb]",
+   "seen": 25
+  },
+  {
+   "t": 36.5,
+   "ft": 36.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 59,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:51:30] [Combat] You hit Aims for 59[Right Limb]",
+   "seen": 31
+  },
+  {
+   "t": 39.5,
+   "ft": 41.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "TerrorBird",
+   "amount": 38,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:51:33] [Combat] You hit Terror Bird for 38[Torso]",
+   "seen": 23
+  },
+  {
+   "t": 40.5,
+   "ft": 53.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "TerrorBird",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[22:51:34] [Combat] You hit Terror Bird for 30[Torso]",
+   "seen": 21
+  },
+  {
+   "t": 49.0,
+   "ft": 49.0,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Aims",
+   "amount": 59,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[Combat] You hit Aims for S9[Right Limb]",
+   "seen": 10
+  },
+  {
+   "t": 52.5,
+   "ft": 52.5,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "TerrorBird",
+   "amount": 38,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "[Combat] You hit Terror Bird for 38[Torso]",
+   "seen": 8
+  },
+  {
+   "t": 54.0,
+   "ft": 54.0,
+   "exact": false,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "TerrorBird",
+   "amount": 30,
+   "ability": null,
+   "flags": [
+    "Torso"
+   ],
+   "raw": "You hit Terror Bird for 30[Torso]",
+   "seen": 9
+  },
+  {
+   "t": 61.5,
+   "ft": 61.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:51:55] [Combat] You hit Esarhaddon for O[Parry]",
+   "seen": 13
+  },
+  {
+   "t": 63.5,
+   "ft": 65.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Esarhaddon",
+   "target": "You",
+   "amount": 0,
+   "ability": null,
+   "flags": [
+    "Parry"
+   ],
+   "raw": "[22:51:57] [Combat] Esarhaddon hits you for O[Parry]",
+   "seen": 12
+  },
+  {
+   "t": 65.5,
+   "ft": 65.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Esarhaddon",
+   "amount": 29,
+   "ability": null,
+   "flags": [
+    "Left Limb"
+   ],
+   "raw": "[22:51:59] [Combat] You hit Esarhaddon for 29[Left Limb]",
+   "seen": 22
+  },
+  {
+   "t": 66.5,
+   "ft": 66.5,
+   "exact": true,
+   "kind": "hit",
+   "dir": "in",
+   "who": "Esarhaddon",
+   "target": "You",
+   "amount": 24,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "-\u2014-\u2014 [22:52:00] [Combat] Esarhaddon hits you for 24[Right Limb]",
+   "seen": 26
+  },
+  {
+   "t": 71.5,
+   "ft": 71.0,
+   "exact": true,
+   "kind": "heal",
+   "dir": "in",
+   "who": "ManaMeat",
+   "target": "You",
+   "amount": 22,
+   "ability": "Lesser Heal",
+   "flags": [],
+   "raw": "[22:52:05] [Combat] ManaMeat's Lesser Heal heals you for 22",
+   "seen": 18
+  },
+  {
+   "t": 71.5,
+   "ft": 71.0,
+   "exact": true,
+   "kind": "hit",
+   "dir": "out",
+   "who": "You",
+   "target": "Qiade",
+   "amount": 27,
+   "ability": null,
+   "flags": [
+    "Right Limb"
+   ],
+   "raw": "[22:52:05] [Combat] You hit Qlade for 27 [Right Limb]",
+   "seen": 18
+  }
+ ]
+}

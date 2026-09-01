@@ -1,0 +1,7 @@
+# Built application -- 228MB, rebuilt from source with one command.
+dist/
+build/
+
+# Python bytecode
+__pycache__/
+*.pyc
