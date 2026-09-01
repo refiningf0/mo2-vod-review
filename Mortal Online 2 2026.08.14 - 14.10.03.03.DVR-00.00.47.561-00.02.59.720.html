@@ -104,7 +104,13 @@
   }
   .rrow{display:flex;align-items:center;gap:2px;}
   /* Out of the way until wanted, but still reachable by keyboard. */
-  .rrow .ex{width:26px;height:26px;font-size:.9rem;opacity:0;}
+  .ex{
+    flex:none;background:none;border:1px solid transparent;color:var(--soft);
+    border-radius:8px;cursor:pointer;padding:0;
+    transition:opacity .12s,color .12s,background .12s;
+  }
+  .ex svg{display:block;}
+  .rrow .ex{width:26px;height:26px;opacity:0;display:grid;place-items:center;}
   .rrow:hover .ex,.rrow .ex:focus-visible{opacity:1;}
 
   .pick{
@@ -245,7 +251,7 @@
   .tag.danger{color:var(--in);background:rgba(239,90,82,.14);border:1px solid rgba(239,90,82,.4);}
   .tag.hard{color:var(--accent);background:rgba(109,140,245,.13);border:1px solid var(--accent-dim);}
   .half.r .fill{background:linear-gradient(90deg,var(--out),rgba(63,191,120,.45));}
-  .ex:hover{border-color:var(--line-2);color:var(--ink);background:rgba(255,255,255,.05);}
+  .ex:hover{color:var(--in);background:rgba(239,90,82,.1);border-color:rgba(239,90,82,.28);}
   .ex:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px;}
 
   .dhead{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
@@ -289,7 +295,7 @@
   /* Counter-reducing a hit is rare -- two of them across four fights -- so it
      gets the top row and is dressed to look like something you pulled off. */
   .part.trophy{
-    align-items:center;gap:12px;
+    align-items:center;gap:18px;padding:19px 26px;
     padding:15px 20px;border-color:var(--accent);
     background:
       linear-gradient(135deg,rgba(109,140,245,.24),rgba(109,140,245,.07) 55%,transparent),
@@ -298,12 +304,12 @@
   }
   .part.trophy .lbl{
     display:flex;align-items:center;gap:9px;
-    font-size:.72rem;text-transform:none;letter-spacing:.01em;
+    font-size:.94rem;text-transform:none;letter-spacing:.01em;
     color:var(--accent);font-weight:700;
   }
-  .part.trophy .lbl::before{content:"\25c6";font-size:.72rem;opacity:.9;}
+  .part.trophy .lbl::before{content:"\25c6";font-size:.86rem;opacity:.9;}
   .part.trophy b{
-    font-size:1.15rem;line-height:1;color:var(--accent);
+    font-size:1.75rem;line-height:1;color:var(--accent);
     text-shadow:0 0 28px rgba(109,140,245,.65);
   }
   .part.magic b{color:var(--magic);}
@@ -379,7 +385,7 @@
       </div>
     </div>
 
-    <div class="card" id="detailcard">
+    <div class="card hide" id="detailcard">
       <h2 id="detailhead">Pick a player</h2>
       <div id="detail"></div>
     </div>
@@ -697,6 +703,13 @@ const BLADE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" strok
 // tooltip, because the row already carries it.
 const HURT = 150;
 
+const HIDE_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" ' +
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3.2 3.2 20.8 20.8"/>' +
+  '<path d="M10.7 5.2A8.7 8.7 0 0 1 12 5.1c5 0 9 4.4 9 6.9 0 .9-.5 2-1.4 3.1"/>' +
+  '<path d="M6.6 6.9C4.4 8.3 3 10.2 3 12c0 2.5 4 6.9 9 6.9 1.5 0 2.9-.4 4.1-1"/>' +
+  '<path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+
 function threat(dealtToYou, youDealt){
   if (dealtToYou >= HURT)
     return `<span class="tag danger" title="They put ${dealtToYou} through you">${SKULL}</span>`;
@@ -750,7 +763,8 @@ function roster(){
           <span class="half r"><span class="fill" style="width:${(d.dealt / peak) * 100}%"></span></span>
         </span>
       </button>
-      <button class="ex" data-x="${esc(n)}" title="Leave ${esc(n)} out of the totals">&times;</button>
+      <button class="ex" data-x="${esc(n)}"
+              title="Stop counting ${esc(n)}">${HIDE_ICON}</button>
     </div>`;
   }).join('');
 
@@ -770,12 +784,15 @@ function detail(){
   const el = document.getElementById('detail');
   const by = involvement();
 
+  const card = document.getElementById('detailcard');
+  // Nothing selected, nothing to say -- an empty panel is a gap with a border
+  // round it, and it pushes the real numbers down the page.
   if (!FOCUS || !by[FOCUS]){
-    head.textContent = 'Pick a player';
-    el.innerHTML = '<div class="empty">Choose someone beside the chart to see every hit ' +
-                   'between you, and to pick them out of the timeline.</div>';
+    card.classList.add('hide');
+    el.innerHTML = '';
     return;
   }
+  card.classList.remove('hide');
   const d = by[FOCUS], hits = d.rows.length;
   head.textContent = 'Every hit';
   el.innerHTML = `<div class="dhead">
