@@ -73,13 +73,51 @@ text on pale ground can't be separated by contrast alone. Using the wrong one
 destroys the text — thresholding a dark scene lost every timestamp. The crop's
 brightness is measured and the method chosen to match.
 
-**Damage numbers fail two opposite ways.** `for 4S[Torso]` is 45 with a letter
-misread as a digit; `for 225Arms]` is 22 with the bracket misread as a digit.
-The surviving bracket is what tells them apart.
+**Damage numbers fail three ways, and they pull against each other.**
+`for 4S[Torso]` is 45 with a letter misread as a digit; `for 225Arms]` is 22
+with the bracket misread as a digit; `for 34Vorso]` is 34, where the bracket
+merged into the `T` beside it and took no digit with it. The body part is what
+separates the last two: clean and flush against the digits means the bracket
+became a digit, damaged means it did not. Reading a letter after the number as
+proof a digit was eaten was wrong eight times out of eight on a hand-checked
+clip — it turned 43 into 4 and 26 into 2.
+
+The third failure has no answer: `for 120041.5;` is a 12 with the rest of the
+line smeared across it, and nothing in that string says where the number
+stopped. A run of four or more digits is that smear, never a real hit, so the
+reading is discarded. That costs nothing — the line is on screen for seconds
+and read from every frame in that span, and the neighbouring frames read the
+same line cleanly. Guessing instead put a 1200-damage hit in a report.
+
+**Some wrong numbers look perfectly right.** `for 551` is a well-formed
+reading; nothing in that line says the `[` of `[Torso]` was read as a `1`.
+Neither does `for818`, where debris crowded up against `for` and joined an 18
+from the other side. The line itself cannot settle it — but the line is on
+screen for seconds and read from every frame in that span, so the true number
+comes back repeatedly while a glyph collision happens in one frame and not its
+neighbours. A number read once, holding a number the same fighter's line shows
+more often nearby, is that number wearing something extra. Names were already
+resolved by agreement across frames; the amounts were the part still taking
+each frame at its word. Only a strict majority moves anything — two readings
+that disagree and are equally attested are left alone rather than guessed at.
+Confirmed against the in-game log: `551` was 55, `for818` was 18, `221` was 22.
 
 **Names come back different every frame** (`Qiade`, `Qlade`). All readings are
 clustered by similarity and collapsed onto the most frequent spelling, with
 `i`/`l` folded together since that's the most confused pair in this font.
+
+**A lost space is not a lost line.** OCR drops the space in front of `for` all
+the time — `hit youfor 26`, `hit Steetchfor 38` — and requiring a word
+boundary there threw away 180 of 2624 lines on one clip, 7% of everything
+read, including hits no other frame recovered. The boundary is now preferred
+rather than required.
+
+**A misread apostrophe can invent a player.** `ALADIM's Outburst` comes back
+`ALADIM:s Outburst` often enough to matter, and when the possessive doesn't
+match, the name match starts after the mark and reads the leftover `s` as part
+of the attacker — putting `sOutburst` in the roster as though it were a person
+and filing ALADIM's damage under it. The possessive now accepts the `:` and
+`;` that OCR substitutes.
 
 **OCR emits bytes Windows' default codec can't decode.** That silently killed
 whole frames and lost whichever part of the fight they covered. Everything

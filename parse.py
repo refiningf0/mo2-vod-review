@@ -43,11 +43,28 @@ SEP = r"[\s@#.,:;'\"\-]*"
 
 AMOUNT_RE = r"\bfor\s+(\d+)([^\d\n]{0,3})"
 BRACKET_RE = re.compile(r"[\[\(\{]")
-LETTER_RE = re.compile(r"[A-Za-z]")
+
+# No hit in this log runs to four digits, so a longer run of them is not a
+# number that got misread -- it is a number that ran into whatever followed it.
+MAX_DIGITS = 3
+
+# The words that can open the bracket closing a damage line. Used as a
+# landmark: text standing where one of these belongs says the bracket is gone,
+# and matching one exactly is what separates a bracket OCR turned into a digit
+# from one it merged into the letter after it.
+BODY_PARTS = ("torso", "head", "arms", "arm", "legs", "leg", "hands", "hand",
+              "feet", "foot", "left", "right", "lower", "upper", "parry",
+              "blocked")
 
 # A spell name, one or two words: "Corrupt", "Lesser Heal", "Greater Heal".
 SPELL = r"([A-Za-z][A-Za-z']{1,13}(?:\s+[A-Za-z][A-Za-z']{1,13})?)"
-POSS = r"\s*['\u2019]\s*s\s*"           # "Karyna's " -- the apostrophe is what marks it
+# The apostrophe is what marks a possessive, and OCR renders it as a colon or
+# a semicolon often enough to matter: "ALADIM:s Outburst", "Ashers;s arrow".
+# Missing these does not just lose the line -- the name match then starts after
+# the mark and reads the leftover "s" as part of the attacker, putting
+# "sOutburst" in the roster as though it were a player.
+APOS = r"['\u2019;:]"
+POSS = r"\s*" + APOS + r"\s*s\s*"       # "Karyna's "
 HEAL = r"[hn]ea[lI][sz5]?"                # heals / heal, and what OCR makes of them
 
 # Healing reads the same way damage does, with a different verb:
@@ -71,7 +88,7 @@ RE_OUT_ABIL = re.compile(r"\byour\s*" + SPELL + r"\s*" + HIT + SEP + NAME +
                          SEP + FOR + SEP + AMT_TOK, re.I)
 
 RE_OUT = re.compile(r"\b" + YOU + r"\s+" + HIT + SEP + NAME + SEP + FOR + SEP + AMT_TOK, re.I)
-RE_IN_ABIL = re.compile(NAME + r"\s*['\u2019]\s*s\s*([A-Za-z]{2,18})\s+" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
+RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s+" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 RE_IN = re.compile(NAME + r"\s+" + HITS + r"?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 
 
@@ -107,24 +124,57 @@ DIGIT_FOR = {"S": "5", "s": "5", "O": "0", "o": "0", "l": "1", "I": "1",
              "i": "1", "Z": "2", "z": "2", "B": "8", "G": "6", "q": "9"}
 
 
-def read_amount(body):
-    """Pull the damage number, undoing two OCR failures that pull in opposite
-    directions.
+def find_amount(body):
+    """Locate the "for <number>" that carries the damage.
 
-    Every damage line ends with a bracketed body part -- "for 45[Torso]".
-
-      * When the bracket survives but a digit inside the number was read as a
-        letter ("for 4S[Torso]"), that letter is really a digit: 45.
-      * When the bracket itself was read as a digit ("for 225Arms]"), the last
-        digit is really the bracket: 22.
-
-    The bracket is what tells them apart. If one is present, letters before it
-    belong to the number; if it is missing, the trailing digit was the bracket.
+    OCR loses the space in front of "for" as readily as any other -- "hit
+    youfor 26", "hit Steetchfor 38", "healsyoufor 25" -- so a word boundary
+    cannot be demanded of it. It is still worth preferring: where a line has a
+    "for" standing on its own that is the one that means "for". Only a line
+    with none falls back to one fused to the word before it, which is the
+    difference between reading such a line and throwing it away.
     """
-    m = re.search(r"\b" + FOR + r"(" + SEP + r")([0-9SsOoIilZzBGq]{1,4})([^0-9\n]{0,3})", body, re.I)
+    for edge in (r"\b" + FOR, FOR):
+        m = re.search(edge + r"(" + SEP + r")([0-9SsOoIilZzBGq'’]{1,8})"
+                      r"([^0-9\n]{0,3})", body, re.I)
+        if m:
+            return m
+    return None
+
+
+def read_amount(body):
+    """Pull the damage number, undoing the OCR failures that reach into it.
+
+    Every damage line ends with a bracketed body part -- "for 45[Torso]" --
+    and spells end at the number itself. What goes wrong is always the join
+    between the number and what follows it:
+
+      * A digit inside the number was read as a letter ("for 4S[Torso]"), or
+        stray punctuation landed in the middle of it ("for 1'8[Torso]"). Both
+        are put back: the number is 45, and 18.
+      * The bracket was read as a digit and joined the number ("for 225Arms]").
+        The body part is the landmark -- text sitting exactly where "[Torso]"
+        belongs, with nothing between it and the digits, says the bracket is
+        the digit. When that text is damaged instead ("for 34Vorso]", where
+        "[T" came back as "V") the bracket merged into the letter, not into
+        the number, and every digit is real.
+      * The number ran into whatever followed it and the two are no longer
+        separable ("for 120041.5;" is a 12 with the body part smeared onto
+        it). Nothing here can say where the number stopped, so the reading is
+        thrown away rather than guessed at. The line is on screen for seconds
+        and read from every frame in that span, so a discarded reading costs
+        nothing -- the frames either side of it read the same line cleanly.
+    """
+    m = find_amount(body)
     if not m:
         return None
     sep, num, tail = m.group(1), m.group(2), m.group(3) or ""
+
+    # OCR drops punctuation into the gaps between glyphs, and the gap between
+    # two digits is no exception: "18" comes back as "1'8".
+    num = num.replace("'", "").replace("’", "")
+    if not num:
+        return None
 
     # A leading letter is ambiguous: it can be noise that landed in the gap
     # ("forz33" is 33) or a digit OCR misread ("for S6" is 56). The space is
@@ -134,25 +184,39 @@ def read_amount(body):
             and num[0].isalpha() and num[1:].isdigit()):
         num = num[1:]
 
-    has_bracket = BRACKET_RE.search(tail)
-
-    if has_bracket:
-        # letters inside the number are misread digits
-        fixed = "".join(DIGIT_FOR.get(c, c) for c in num)
-        if not fixed.isdigit():
-            return None
-        return int(fixed)
-
+    num = "".join(DIGIT_FOR.get(c, c) for c in num)
     if not num.isdigit():
-        fixed = "".join(DIGIT_FOR.get(c, c) for c in num)
-        if not fixed.isdigit():
-            return None
-        num = fixed
+        return None
 
-    # no bracket: a letter just past the number means the bracket was eaten
-    if len(num) > 1 and LETTER_RE.search(tail):
+    # Too many digits to be a number: the run swallowed the text after it, and
+    # which digits were the damage is no longer recoverable.
+    if len(num) > MAX_DIGITS:
+        return None
+
+    if BRACKET_RE.search(tail):
+        return int(num)
+
+    # No bracket. If the body part is standing where the bracket should be,
+    # touching the digits, then the bracket is the last digit -- but only when
+    # the body part reads cleanly. A damaged one means the bracket went into
+    # the letter beside it and the number was never touched.
+    if len(num) > 1 and _eats_bracket(tail):
         num = num[:-1]
     return int(num)
+
+
+def _eats_bracket(tail):
+    """True when `tail` is a body part sitting flush against the number.
+
+    Flush is the whole test. A space or any other debris between the digits
+    and the word means the bracket was dropped rather than read as a digit,
+    and the number is already whole.
+    """
+    word = re.match(r"[A-Za-z]{2,}", tail)
+    if not word:
+        return False
+    w = word.group(0).lower()
+    return any(b.startswith(w) or w.startswith(b) for b in BODY_PARTS)
 
 
 def parse_line(raw, frame_t=None):
@@ -173,7 +237,7 @@ def parse_line(raw, frame_t=None):
         return None
 
     body = strip_channel(body)
-    if not body or not re.search(r"\b" + FOR + SEP + AMT_TOK, body, re.I):
+    if not body or not find_amount(body):
         return None
 
     flags = [f.strip() for f in FLAGS.findall(body)
@@ -323,6 +387,88 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
     return anchors
 
 
+def _settle_amounts(events, visible):
+    """Put right the numbers that only one frame agrees with.
+
+    A glyph standing next to the damage number sometimes joins it. The opening
+    bracket of the body part does it from the right -- "for 55" comes back
+    "551" -- and stray marks do it from the left, crowding up against "for"
+    until "for 18" reads "for818". Occasionally the traffic goes the other way
+    and a digit is lost into the debris beside it.
+
+    No single line betrays any of this: "551" is a perfectly well-formed
+    reading. What gives it away is the same thing that gives away a misread
+    name -- the other frames. A line sits on screen for seconds and is read
+    from every frame in that span, so the true number is read repeatedly while
+    a glyph collision happens in one frame and not its neighbours. A number
+    read once, holding a number the same fighter's line shows more often
+    within that span, is that number wearing something extra.
+
+    Names are compared this way already; the amounts were the part still
+    taking each frame at its word. Only a strict majority moves anything: two
+    readings that disagree and are equally attested are left alone rather than
+    resolved by guesswork.
+    """
+    def nm(e):
+        return e["who"] if e["dir"] == "in" else e["target"]
+
+    # Which readings may vouch for each other. A fighter's own line is the
+    # right company to judge a number in -- comparing across fighters lets one
+    # player's 1 rewrite another's 12. The exception is a hit whose attacker
+    # OCR lost: "Unknown" is not a fighter, so a reading filed under it is
+    # weighed against every reading of its kind instead.
+    named = {}
+    loose = []
+    for e in events:
+        who = nm(e)
+        if not who:
+            continue
+        if who == "Unknown":
+            loose.append(e)
+        else:
+            named.setdefault((e.get("kind", "hit"), e["dir"], who), []).append(e)
+
+    everything = [e for e in events if nm(e)]
+    work = [(rows, rows) for rows in named.values()] + [(loose, everything)]
+
+    for rows, company in work:
+        counts = Counter(e["amount"] for e in company)
+        for e in rows:
+            if counts[e["amount"]] != 1:
+                continue
+            digits = str(e["amount"])
+            best = best_n = None
+            for other in company:
+                d = str(other["amount"])
+                if not _one_glyph_over(digits, d):
+                    continue
+                n = counts[other["amount"]]
+                if n <= 1:
+                    continue                      # a strict majority, or nothing
+                if abs(other["t"] - e["t"]) > visible:
+                    continue                      # too far apart to be one line
+                # Where more than one number could explain it, the one the
+                # frames agreed on most often is the reading to trust.
+                if best_n is None or n > best_n:
+                    best, best_n = other["amount"], n
+            if best is not None:
+                e["amount"] = best
+    return events
+
+
+def _one_glyph_over(digits, other):
+    """True when `digits` is `other` with one extra character wedged into it.
+
+    That is the whole shape of the failure. A mark beside the number joins it
+    -- the opening bracket at the end ("55" reads "551"), debris at the front
+    ("18" reads "818"), or something landing in the gap between two digits
+    ("11" reads "Isl", which converts to 151). One character in, anywhere.
+    """
+    if len(digits) != len(other) + 1:
+        return False
+    return any(digits[:i] + digits[i + 1:] == other for i in range(len(digits)))
+
+
 def dedupe(events, visible=12.0, rescue_min=8):
     """Collapse the many readings of one log line into a single event.
 
@@ -342,6 +488,8 @@ def dedupe(events, visible=12.0, rescue_min=8):
     """
     def nm(e):
         return e["who"] if e["dir"] == "in" else e["target"]
+
+    _settle_amounts(events, visible)
 
     groups = {}
     for e in sorted(events, key=lambda x: x["t"]):
