@@ -328,7 +328,7 @@ def ocr_folder_parallel(folder, n):
 
 
 def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
-        roster=None, min_seen=None):
+        roster=None, min_seen=None, no_path=False):
     w, h, dur = probe(video)
     if crop is None:
         # The default crop is tuned, and tuned beats derived here: MO2 also
@@ -435,6 +435,10 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
                        - {"Unknown"})
         data = dict(
             source=os.path.basename(video),
+            # Full path so the report can open the clip it was read from. It
+            # travels with the file, so a shared report carries the folder it
+            # came out of -- see --no-path.
+            source_path=(None if no_path else os.path.abspath(video)),
             duration=round(dur, 1),
             fps_sampled=fps_f,
             frames=len(frames),
@@ -495,11 +499,13 @@ def main():
                     help="frames an event must be read from to count "
                          "(default: a quarter of what is typical for the clip)")
     ap.add_argument("--players", help="comma-separated real player names; improves accuracy a lot")
+    ap.add_argument("--no-path", action="store_true",
+                    help="leave the video's location out of the report")
     a = ap.parse_args()
     crop = tuple(int(v) for v in a.crop.split(",")) if a.crop else None
     roster = [p.strip() for p in a.players.split(',')] if a.players else None
     run(a.video, fps=a.fps, crop=crop, out=a.out, keep=a.keep_frames,
-        roster=roster, min_seen=a.min_seen)
+        roster=roster, min_seen=a.min_seen, no_path=a.no_path)
 
 
 if __name__ == "__main__":
