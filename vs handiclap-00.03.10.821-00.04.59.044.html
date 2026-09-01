@@ -487,7 +487,9 @@ function start(){
     // Opening a local file from a local page is allowed; from a page served
     // over http it is not, so fall back to plain text rather than a dead link.
     const href = encodeURI('file:///' + DATA.source_path.replace(/\\/g, '/'));
-    title.innerHTML = `<a class="clip" href="${href}" title="Open the clip">${esc(name)}` +
+    // A new tab, so the report you were reading is still there behind it.
+    title.innerHTML = `<a class="clip" href="${href}" target="_blank" rel="noopener"` +
+      ` title="Open the clip in a new tab">${esc(name)}` +
       `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" ` +
       `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
       `<path d="M5 4.6 19 12 5 19.4z"/></svg></a>`;
