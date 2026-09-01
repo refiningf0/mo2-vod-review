@@ -120,8 +120,19 @@
     transition:opacity .12s,color .12s,background .12s;
   }
   .ex svg{display:block;}
-  .rrow .ex{width:26px;height:26px;opacity:0;display:grid;place-items:center;}
-  .rrow:hover .ex,.rrow .ex:focus-visible{opacity:1;}
+  /* Always on the row, dim, so it is clear every name can be switched off --
+     and clear which ones already are. */
+  .rrow .ex{
+    width:26px;height:26px;display:grid;place-items:center;
+    opacity:.3;color:var(--soft);
+  }
+  .rrow:hover .ex{opacity:.75;}
+  .rrow .ex:hover,.rrow .ex:focus-visible{opacity:1;}
+
+  /* Set aside: the row stays legible enough to read and to click back on. */
+  .rrow.off .pick{opacity:.34;}
+  .rrow.off .ex{opacity:1;color:var(--in);}
+  .rrow.off .ex:hover{background:rgba(239,90,82,.14);border-color:rgba(239,90,82,.35);}
 
   .pick{
     flex:1;min-width:0;display:grid;grid-template-columns:26px 1fr auto;
@@ -793,11 +804,10 @@ function involvement(){
 
 function roster(){
   const by = involvement();
-  // Someone left out of the totals is out of the fight as far as this report
-  // is concerned, so they leave the list too. The line under it is how they
-  // come back.
+  // Everyone stays in the list whether or not they count. A name that
+  // vanished when you clicked it left you guessing what you had done and
+  // where it went; greyed out with its eye lit, the state is on the row.
   const names = Object.keys(by)
-    .filter(n => !EXCLUDED.has(n))
     .sort((x, y) => (by[y].dealt + by[y].taken) - (by[x].dealt + by[x].taken));
 
   const el = document.getElementById('roster');
@@ -809,7 +819,8 @@ function roster(){
 
   el.innerHTML = names.map(n => {
     const d = by[n];
-    return `<div class="rrow">
+    const off = EXCLUDED.has(n);
+    return `<div class="rrow${off ? ' off' : ''}">
       <button class="pick${FOCUS === n ? ' on' : ''}" data-p="${esc(n)}">
         <span class="av" style="background:${tint(n)}">${mark()}</span>
         <span class="nm">${esc(n)}${threat(d.taken, d.dealt)}</span>
@@ -821,8 +832,9 @@ function roster(){
           <span class="half r"><span class="fill" style="width:${(d.dealt / peak) * 100}%"></span></span>
         </span>
       </button>
-      <button class="ex" data-x="${esc(n)}"
-              title="Stop counting ${esc(n)}">${HIDE_ICON}</button>
+      <button class="ex" data-x="${esc(n)}" aria-pressed="${off}"
+              title="${off ? 'Count ' + esc(n) + ' again' : 'Stop counting ' + esc(n)}"
+        >${HIDE_ICON}</button>
     </div>`;
   }).join('');
 
@@ -830,8 +842,8 @@ function roster(){
     b.addEventListener('click', () => setFocus(b.dataset.p)));
   el.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
     const n = b.dataset.x;
-    EXCLUDED.add(n);
-    if (FOCUS === n) FOCUS = null;
+    if (EXCLUDED.has(n)) EXCLUDED.delete(n);
+    else { EXCLUDED.add(n); if (FOCUS === n) FOCUS = null; }
     render();
   }));
 }
