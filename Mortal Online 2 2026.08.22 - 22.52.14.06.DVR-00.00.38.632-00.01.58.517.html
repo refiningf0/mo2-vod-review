@@ -189,6 +189,11 @@
   /* ---- timeline ---- */
   .tl{position:relative;}
   .tl svg{display:block;width:100%;height:210px;overflow:visible;}
+  /* The three duel marks take the colour of the stat that selects them. */
+  .mk[data-mk="counter"]{color:var(--accent);}
+  .mk[data-mk="parried"]{color:var(--out);}
+  .mk[data-mk="gotparried"]{color:var(--in);}
+  .burst{pointer-events:auto;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
     background:rgba(11,13,17,.97);border:1px solid var(--line-2);border-radius:9px;
@@ -636,6 +641,13 @@ function dimTimeline(){
     n.setAttribute('opacity', on ? '.9' : (FOCUS || HILITE ? '.08' : '.18'));
   });
 
+  document.querySelectorAll('#marks .mk').forEach(g => {
+    const e = DATA.events[+g.dataset.i];
+    const lit = HILITE === g.dataset.mk;
+    g.setAttribute('opacity',
+      !inWindow(e) || EXCLUDED.has(foe(e)) ? '.06' : (lit ? '1' : (HILITE ? '.08' : '.3')));
+  });
+
   const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
   const sel = document.getElementById('sel');
   if (sel){
@@ -657,6 +669,39 @@ function dimTimeline(){
 }
 
 /* ---------------- timeline ---------------- */
+
+// A hundred damage inside six seconds. Held flat on purpose: it means the same
+// thing in every fight, so a burst in one recording is comparable to a burst in
+// another. Across four clips the worst six seconds ran 39, 80, 168 and 171, so
+// this marks the two that were genuinely dangerous and leaves the rest alone.
+const BURST_SPAN = 6.0;
+const BURST_DMG = 100;
+
+function bursts(){
+  const inc = DATA.events
+    .filter(e => isHit(e) && e.dir === 'in' && !EXCLUDED.has(e.who))
+    .sort((a, b) => a.t - b.t);
+
+  const hot = [];
+  for (let i = 0; i < inc.length; i++){
+    let sum = 0, end = inc[i].t;
+    for (let j = i; j < inc.length && inc[j].t - inc[i].t <= BURST_SPAN; j++){
+      sum += inc[j].amount; end = inc[j].t;
+    }
+    if (sum >= BURST_DMG) hot.push({from: inc[i].t, to: end, dmg: sum});
+  }
+  // Overlapping windows describe one bad moment, not several.
+  const out = [];
+  hot.forEach(h => {
+    const last = out[out.length - 1];
+    if (last && h.from <= last.to){
+      last.to = Math.max(last.to, h.to);
+      last.dmg = Math.max(last.dmg, h.dmg);
+    } else out.push({...h});
+  });
+  return out;
+}
+
 function timeline(){
   const ev = DATA.events, svg = document.getElementById('svg');
   const W = 1000, H = 200, mid = H/2, pad = 0;
@@ -693,13 +738,39 @@ function timeline(){
       fill="var(--${up?'out':'in'})" opacity=".9" data-i="${i}"></rect>`;
   });
 
+  // Anything that turns a swing aside does no damage, so its bar is a stub a
+  // few pixels tall. A line the height of the chart is what makes it findable.
+  const marks = ev.map((e, i) => {
+    const d = DUEL.find(x => isHit(e) && x.test(e));
+    if (!d) return '';
+    const x = X(e.t).toFixed(1);
+    return `<g class="mk" data-mk="${d.k}" data-i="${i}">
+      <line x1="${x}" y1="14" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
+            stroke-dasharray="3 4" opacity=".55"></line>
+      <circle cx="${x}" cy="8" r="4.2" fill="currentColor"></circle>
+    </g>`;
+  }).join('');
+
+  const bands = bursts().map(b => {
+    const x1 = X(b.from), x2 = Math.max(X(b.to), x1 + 6);
+    return `<g class="burst">
+      <title>Took ${b.dmg} in ${(b.to - b.from).toFixed(1)}s</title>
+      <rect x="${x1.toFixed(1)}" y="0" width="${(x2 - x1).toFixed(1)}" height="${H}"
+            fill="var(--in)" opacity=".1"></rect>
+      <rect x="${x1.toFixed(1)}" y="${H - 2}" width="${(x2 - x1).toFixed(1)}" height="2"
+            fill="var(--in)" opacity=".75"></rect>
+    </g>`;
+  }).join('');
+
   svg.innerHTML =
     `<rect id="maskL" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
      <rect id="maskR" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
      <path d="${path(p=>p.o,true)}"  fill="none" stroke="var(--out)" stroke-width="1.5" opacity=".33"></path>
      <path d="${path(p=>p.i,false)}" fill="none" stroke="var(--in)"  stroke-width="1.5" opacity=".33"></path>
      <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--line)" stroke-width="1"></line>
-     <g id="hits">${bars}</g>`;
+     <g id="bursts">${bands}</g>
+     <g id="hits">${bars}</g>
+     <g id="marks">${marks}</g>`;
 
   const tip = document.getElementById('tip'), tl = document.getElementById('tl');
   svg.addEventListener('mousemove', ev2 => {
@@ -844,7 +915,7 @@ function roster(){
     const n = b.dataset.x;
     if (EXCLUDED.has(n)) EXCLUDED.delete(n);
     else { EXCLUDED.add(n); if (FOCUS === n) FOCUS = null; }
-    render();
+    timeline(); render();
   }));
 }
 
