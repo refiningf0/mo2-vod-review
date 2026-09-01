@@ -81,7 +81,7 @@
   .strip .sub{font-size:.72rem;color:var(--soft);}
   .strip .dealt b{color:var(--out);} .strip .taken b{color:var(--in);}
 
-  .lead-grid{display:grid;grid-template-columns:186px 1fr;gap:22px;align-items:start;}
+  .lead-grid{display:grid;grid-template-columns:302px 1fr;gap:22px;align-items:start;}
   .picks h2{margin-bottom:12px;}
   .chart h2{margin-bottom:14px;}
   .focusnote{
@@ -90,19 +90,45 @@
   }
   .chart h2::after{display:none;}
 
+  /* Everyone, not a shortlist -- the chart is driven from here, so leaving
+     someone out would put them out of reach. */
+  .rosterlist{
+    max-height:322px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;
+  }
+  .rosterlist::-webkit-scrollbar{width:8px;}
+  .rosterlist::-webkit-scrollbar-track{background:transparent;}
+  .rosterlist::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.13);border-radius:99px;
+    border:2px solid transparent;background-clip:content-box;
+  }
+  .rrow{display:flex;align-items:center;gap:2px;}
+  /* Out of the way until wanted, but still reachable by keyboard. */
+  .rrow .ex{width:26px;height:26px;font-size:.9rem;opacity:0;}
+  .rrow:hover .ex,.rrow .ex:focus-visible{opacity:1;}
+
   .pick{
-    width:100%;display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:9px;
+    flex:1;min-width:0;display:grid;grid-template-columns:26px 1fr auto;
+    align-items:center;gap:9px 10px;
     background:none;border:1px solid transparent;color:inherit;font:inherit;
-    padding:7px 8px;border-radius:9px;cursor:pointer;text-align:left;margin-bottom:2px;
+    padding:7px 8px;border-radius:9px;cursor:pointer;text-align:left;
     transition:background .12s,border-color .12s;
   }
+  .pick .minibar{grid-column:2 / -1;display:flex;align-items:center;height:5px;margin-top:5px;}
+  .pick .minibar .half{flex:1;display:flex;height:4px;}
+  .pick .minibar .half.l{justify-content:flex-end;}
+  .pick .minibar .fill{border-radius:99px;}
+  .pick .minibar .half.l .fill{background:var(--in);}
+  .pick .minibar .half.r .fill{background:var(--out);}
+  .pick .minibar .spine{width:1px;height:7px;background:var(--line-2);flex:none;}
+  .pick .amt{font-size:.72rem;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .pick .amt .t{color:var(--in);} .pick .amt .d{color:var(--out);} .pick .amt .z{color:var(--soft);}
   .pick:hover{background:rgba(255,255,255,.04);}
   .pick.on{background:rgba(109,140,245,.12);border-color:var(--accent-dim);}
   .pick .av{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;}
   .pick .av svg{width:15px;height:15px;}
   .pick .nm{font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .pick.on .nm{color:var(--accent);}
-  .pick .amt{font-size:.74rem;color:var(--soft);font-variant-numeric:tabular-nums;}
   .picks .clear{
     width:100%;margin-top:8px;background:none;border:1px solid var(--line);
     color:var(--soft);border-radius:8px;font:inherit;font-size:.72rem;padding:6px;cursor:pointer;
@@ -197,7 +223,6 @@
   }
   .filter::placeholder{color:var(--soft);}
   .filter:focus{outline:none;border-color:var(--accent-dim);background:rgba(0,0,0,.4);}
-  .hint{color:var(--soft);font-size:.72rem;margin:0 0 12px;}
   .exsum{
     display:flex;justify-content:space-between;align-items:center;gap:10px;
     color:var(--mid);font-size:.75rem;margin:0 0 10px;
@@ -209,42 +234,7 @@
 
   /* Fifteen names pushed the rest of the report off the screen. Five is
      enough to see the shape of the fight; the rest are a scroll away. */
-  .opplist{
-    max-height:296px;overflow-y:auto;overscroll-behavior:contain;
-    -webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 26px),transparent);
-            mask-image:linear-gradient(180deg,#000 calc(100% - 26px),transparent);
-    padding-right:4px;
-  }
-  .opplist.short{max-height:none;-webkit-mask-image:none;mask-image:none;}
-  .opplist::-webkit-scrollbar{width:8px;}
-  .opplist::-webkit-scrollbar-track{background:transparent;}
-  .opplist::-webkit-scrollbar-thumb{
-    background:rgba(255,255,255,.13);border-radius:99px;border:2px solid transparent;
-    background-clip:content-box;
-  }
-  .opplist::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.22);background-clip:content-box;}
-  .opplist{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;}
-  .listnote{color:var(--soft);font-size:.72rem;margin:10px 0 0;}
 
-  .opp{border-top:1px solid var(--line);}
-  .opp:first-child{border-top:none;}
-  .opprow{display:flex;align-items:center;gap:4px;}
-  .opprow .oppbtn{flex:1;min-width:0;}
-  .oppbtn{
-    background:none;border:none;color:inherit;font:inherit;cursor:pointer;
-    display:grid;grid-template-columns:26px 34px minmax(150px,1.2fr) 1.9fr 116px;
-    align-items:center;gap:12px;padding:11px 8px;text-align:left;border-radius:10px;
-    transition:background .12s;
-  }
-  .oppbtn:hover{background:rgba(255,255,255,.035);}
-  .rank{font-size:.78rem;color:var(--soft);font-variant-numeric:tabular-nums;text-align:right;}
-  .badge{
-    width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
-    box-shadow:0 1px 3px -1px rgba(0,0,0,.5);
-  }
-  .badge svg{display:block;}
-  .oppname{font-weight:650;font-size:.92rem;min-width:0;}
-  .oppname .hits{display:block;font-weight:400;font-size:.69rem;color:var(--soft);letter-spacing:.02em;}
   /* Someone who took a real bite out of you should be findable at a glance in
      a fifteen-name list, without reading a single number. */
   .tag{
@@ -254,33 +244,18 @@
   .tag svg{display:block;}
   .tag.danger{color:var(--in);background:rgba(239,90,82,.14);border:1px solid rgba(239,90,82,.4);}
   .tag.hard{color:var(--accent);background:rgba(109,140,245,.13);border:1px solid var(--accent-dim);}
-  .opp.off .tag{opacity:.3;}
-  .bars{display:flex;align-items:center;height:24px;}
-  .half{flex:1;display:flex;height:9px;}
-  .half.l{justify-content:flex-end;}
-  .half .fill{border-radius:999px;min-width:0;transition:opacity .12s;}
-  .half.l .fill{background:linear-gradient(270deg,var(--in),rgba(239,90,82,.45));}
   .half.r .fill{background:linear-gradient(90deg,var(--out),rgba(63,191,120,.45));}
-  .spine{width:1px;height:24px;background:var(--line-2);flex:none;}
-  .oppnums{display:flex;justify-content:space-between;font-size:.86rem;
-           font-variant-numeric:tabular-nums;font-weight:650;}
-  .oppnums .t{color:var(--in);} .oppnums .d{color:var(--out);} .oppnums .z{color:var(--soft);font-weight:400;}
-
-  .ex{
-    flex:none;background:none;border:1px solid transparent;color:var(--soft);
-    font:inherit;font-size:1rem;line-height:1;width:30px;height:30px;
-    border-radius:9px;cursor:pointer;opacity:0;transition:opacity .12s,color .12s;
-  }
-  .opprow:hover .ex,.opp.off .ex{opacity:1;}
   .ex:hover{border-color:var(--line-2);color:var(--ink);background:rgba(255,255,255,.05);}
   .ex:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px;}
-  .opp.off .oppname,.opp.off .oppnums,.opp.off .badge{opacity:.3;}
-  .opp.off .half .fill{opacity:.2;}
-  .opp.off .ex{color:var(--accent);}
-  .opp.focus{background:linear-gradient(90deg,rgba(109,140,245,.09),transparent);border-radius:12px;}
-  .opp.focus .oppname{color:var(--accent);}
 
-  .detail{padding:0 8px 18px 74px;}
+  .dhead{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .dhead .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none;}
+  .dhead .av svg{width:23px;height:23px;}
+  .dhead .nm{font-size:1.02rem;font-weight:700;}
+  .dhead .sum{font-size:.76rem;color:var(--soft);margin-top:2px;}
+  .dhead .sum .t{color:var(--in);} .dhead .sum .d{color:var(--out);}
+
+  .detail{padding:0 2px 4px;}
   table{width:100%;border-collapse:collapse;font-size:.82rem;}
   th{font-size:.62rem;text-transform:uppercase;letter-spacing:.11em;color:var(--soft);
      font-weight:600;text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);}
@@ -353,9 +328,7 @@
   @media(max-width:760px){
     .totals{grid-template-columns:1fr;}
     .strip{gap:16px;}
-    .oppbtn{grid-template-columns:30px minmax(80px,1fr) 104px;gap:10px;}
     .rank,.bars{display:none;}
-    .detail{padding-left:8px;}
   }
 
   /* Last, so it beats the display rule on whatever it is hiding. */
@@ -380,8 +353,9 @@
     <div class="card lead">
       <div class="lead-grid">
         <aside class="picks">
-          <h2>Most involved</h2>
-          <div id="picks"></div>
+          <h2>Players</h2>
+          <div class="rosterlist" id="roster"></div>
+          <div class="exsum" id="exsum"></div>
         </aside>
         <div class="chart">
           <h2>How the fight went <span class="focusnote" id="focusnote"></span></h2>
@@ -405,12 +379,9 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Who you fought</h2>
-      <p class="hint">Click a name to pick them out on the chart and open their hits. The &times; leaves someone out of the totals.</p>
-      <div class="exsum" id="exsum"></div>
-      <div class="opplist" id="opps"></div>
-      <p class="listnote" id="listnote"></p>
+    <div class="card" id="detailcard">
+      <h2 id="detailhead">Pick a player</h2>
+      <div id="detail"></div>
     </div>
 
     <div class="card">
@@ -519,7 +490,7 @@ function start(){
   timeline(); render();
 }
 
-function render(){ totals(); picks(); opponents(); parts(); spells(); excluded(); dimTimeline(); }
+function render(){ totals(); roster(); detail(); parts(); spells(); excluded(); dimTimeline(); }
 
 function spells(){
   const ev = counted();
@@ -688,132 +659,11 @@ function totals(){
       <span class="sub">${i ? (o/i).toFixed(1)+'\u00d7 traded' : 'took nothing'}</span></div>`;
 }
 
-/* ---------------- the fight's headline players ---------------- */
-// Ranked the same way the scoreboard is, so the shortlist and the full list
-// never disagree about who mattered.
-function involvement(){
-  const by = {};
-  DATA.events.filter(e => inWindow(e) && isHit(e)).forEach(e => {
-    const n = foe(e);
-    if (!n) return;
-    const d = (by[n] = by[n] || {dealt: 0, taken: 0, rows: []});
-    d[e.dir === 'out' ? 'dealt' : 'taken'] += e.amount;
-    d.rows.push(e);
-  });
-  return by;
-}
-
-function picks(){
-  const by = involvement();
-  const top = Object.keys(by)
-    .sort((a, b) => (by[b].dealt + by[b].taken) - (by[a].dealt + by[a].taken))
-    .slice(0, 5);
-  const el = document.getElementById('picks');
-  if (!top.length){ el.innerHTML = '<div class="empty">Nobody yet.</div>'; return; }
-
-  el.innerHTML = top.map(n => {
-    const d = by[n];
-    return `<button class="pick${FOCUS === n ? ' on' : ''}" data-p="${esc(n)}">
-      <span class="av" style="background:${tint(n)}">${mark()}</span>
-      <span class="nm">${esc(n)}</span>
-      <span class="amt">${d.dealt + d.taken}</span>
-    </button>`;
-  }).join('') + (FOCUS ? '<button class="clear" id="clearfocus">show everyone</button>' : '');
-
-  el.querySelectorAll('.pick').forEach(b =>
-    b.addEventListener('click', () => setFocus(b.dataset.p)));
-  const c = document.getElementById('clearfocus');
-  if (c) c.addEventListener('click', () => setFocus(FOCUS));
-}
-
-// One place decides who is highlighted, so the shortlist, the scoreboard and
-// the chart cannot drift out of step.
-function setFocus(n){
-  FOCUS = (FOCUS === n) ? null : n;
-  document.querySelectorAll('.opp').forEach(o => o.classList.remove('focus'));
-  if (FOCUS){
-    const b = document.querySelector(`.oppbtn[data-n="${CSS.escape(FOCUS)}"]`);
-    if (b) b.closest('.opp').classList.add('focus');
-  }
-  document.getElementById('focusnote').textContent = FOCUS ? `showing ${FOCUS}` : '';
-  picks();
-  dimTimeline();
-}
-
-/* ---------------- opponents ---------------- */
-function opponents(){
-  const by = involvement();
-  let names = Object.keys(by);
-  names.sort((a,b) => (by[b].dealt+by[b].taken) - (by[a].dealt+by[a].taken));
-
-  const el = document.getElementById('opps');
-  if (!names.length){
-    el.innerHTML = '<div class="empty">No hits in this stretch.</div>';
-    return;
-  }
-  // One scale across everyone, so bar lengths compare between rows.
-  const peak = Math.max(1, ...names.map(n => Math.max(by[n].dealt, by[n].taken)));
-
-  el.innerHTML = names.map((n, i) => {
-    const d = by[n], hits = d.rows.length;
-    const off = EXCLUDED.has(n);
-    return `<div class="opp${off ? ' off' : ''}">
-      <div class="opprow">
-      <button class="oppbtn" data-n="${esc(n)}" aria-expanded="false">
-        <span class="rank num">${i + 1}</span>
-        <span class="badge" style="background:${tint(n)}">${mark()}</span>
-        <span class="oppname">${esc(n)}${threat(d.taken, d.dealt)}<span class="hits">${hits} hit${hits===1?'':'s'}</span></span>
-        <span class="bars">
-          <span class="half l"><span class="fill" style="width:${(d.taken/peak)*100}%"></span></span>
-          <span class="spine"></span>
-          <span class="half r"><span class="fill" style="width:${(d.dealt/peak)*100}%"></span></span>
-        </span>
-        <span class="oppnums">
-          <span class="${d.taken?'t':'z'}">${d.taken || '—'}</span>
-          <span class="${d.dealt?'d':'z'}">${d.dealt || '—'}</span>
-        </span>
-      </button>
-      <button class="ex" data-x="${esc(n)}" aria-pressed="${off}"
-              title="${off ? 'Count ' + esc(n) + ' again' : 'Leave ' + esc(n) + ' out of the totals'}"
-        >${off ? '+' : '\u00d7'}</button>
-      </div>
-      <div class="detail hide" data-d="${esc(n)}">${table(d.rows)}</div>
-    </div>`;
-  }).join('');
-
-  el.classList.toggle('short', names.length <= 5);
-  const note = document.getElementById('listnote');
-  if (note) note.textContent = names.length > 5
-    ? `Showing 5 of ${names.length} \u2014 scroll the list for the rest.` : '';
-
-  el.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
-    const n = b.dataset.x;
-    EXCLUDED.has(n) ? EXCLUDED.delete(n) : EXCLUDED.add(n);
-    render();
-  }));
-
-  el.querySelectorAll('.oppbtn').forEach(b => b.addEventListener('click', () => {
-    const n = b.dataset.n;
-    const d = el.querySelector(`.detail[data-d="${CSS.escape(n)}"]`);
-    const open = !d.classList.contains('hide');
-    d.classList.toggle('hide', open);
-    b.setAttribute('aria-expanded', String(!open));
-
-    // Opening a name focuses it; closing it again gives the whole fight back.
-    setFocus(open ? FOCUS : n);
-    if (!open) d.scrollIntoView({block: 'nearest'});
-  }));
-
-  // A rebuild throws the rows away, so put the marker back on the focused one.
-  if (FOCUS) {
-    const b = el.querySelector(`.oppbtn[data-n="${CSS.escape(FOCUS)}"]`);
-    if (b) b.closest('.opp').classList.add('focus');
-    else FOCUS = null;
-  }
-}
+/* ---------------- how a player is drawn ---------------- */
 
 // Placeholder avatars, in the spirit of a chat app's default: a flat colour
-// and a plain bust. Fixed by the name so a player looks the same every report.
+// and a plain bust. Fixed by the name, so a player looks the same in every
+// report you open.
 const AVATAR_BG = ['#5865f2', '#747f8d', '#3ba55c', '#faa81a', '#ed4245', '#eb459e'];
 
 function nameHash(name){
@@ -824,6 +674,12 @@ function nameHash(name){
 function tint(name){
   return AVATAR_BG[nameHash(name) % AVATAR_BG.length];
 }
+function mark(){
+  return '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" aria-hidden="true">' +
+    '<circle cx="12" cy="8.6" r="4.1"/>' +
+    '<path d="M12 14.1c-3.9 0-7 2.4-7 5.4v1.2h14v-1.2c0-3-3.1-5.4-7-5.4z"/></svg>';
+}
+
 const SKULL = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
   'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M12 2.4c4.5 0 7.8 3.1 7.8 7.3 0 2.7-1.3 4.2-2.5 5.2v3.4c0 1-.9 1.9-1.9 1.9H8.6' +
@@ -849,10 +705,98 @@ function threat(dealtToYou, youDealt){
   return '';
 }
 
-function mark(){
-  return '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff" aria-hidden="true">' +
-    '<circle cx="12" cy="8.6" r="4.1"/>' +
-    '<path d="M12 14.1c-3.9 0-7 2.4-7 5.4v1.2h14v-1.2c0-3-3.1-5.4-7-5.4z"/></svg>';
+/* ---------------- the fight's headline players ---------------- */
+// Ranked the same way the scoreboard is, so the shortlist and the full list
+// never disagree about who mattered.
+function involvement(){
+  const by = {};
+  DATA.events.filter(e => inWindow(e) && isHit(e)).forEach(e => {
+    const n = foe(e);
+    if (!n) return;
+    const d = (by[n] = by[n] || {dealt: 0, taken: 0, rows: []});
+    d[e.dir === 'out' ? 'dealt' : 'taken'] += e.amount;
+    d.rows.push(e);
+  });
+  return by;
+}
+
+function roster(){
+  const by = involvement();
+  // Someone left out of the totals is out of the fight as far as this report
+  // is concerned, so they leave the list too. The line under it is how they
+  // come back.
+  const names = Object.keys(by)
+    .filter(n => !EXCLUDED.has(n))
+    .sort((x, y) => (by[y].dealt + by[y].taken) - (by[x].dealt + by[x].taken));
+
+  const el = document.getElementById('roster');
+  if (!names.length){
+    el.innerHTML = '<div class="empty">Nobody in this stretch.</div>';
+    return;
+  }
+  const peak = Math.max(1, ...names.map(n => Math.max(by[n].dealt, by[n].taken)));
+
+  el.innerHTML = names.map(n => {
+    const d = by[n];
+    return `<div class="rrow">
+      <button class="pick${FOCUS === n ? ' on' : ''}" data-p="${esc(n)}">
+        <span class="av" style="background:${tint(n)}">${mark()}</span>
+        <span class="nm">${esc(n)}${threat(d.taken, d.dealt)}</span>
+        <span class="amt"><span class="${d.taken ? 't' : 'z'}">${d.taken || '—'}</span>
+          <span class="z">/</span> <span class="${d.dealt ? 'd' : 'z'}">${d.dealt || '—'}</span></span>
+        <span class="minibar">
+          <span class="half l"><span class="fill" style="width:${(d.taken / peak) * 100}%"></span></span>
+          <span class="spine"></span>
+          <span class="half r"><span class="fill" style="width:${(d.dealt / peak) * 100}%"></span></span>
+        </span>
+      </button>
+      <button class="ex" data-x="${esc(n)}" title="Leave ${esc(n)} out of the totals">&times;</button>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.pick').forEach(b =>
+    b.addEventListener('click', () => setFocus(b.dataset.p)));
+  el.querySelectorAll('.ex').forEach(b => b.addEventListener('click', () => {
+    const n = b.dataset.x;
+    EXCLUDED.add(n);
+    if (FOCUS === n) FOCUS = null;
+    render();
+  }));
+}
+
+/* ---------------- the selected player ---------------- */
+function detail(){
+  const head = document.getElementById('detailhead');
+  const el = document.getElementById('detail');
+  const by = involvement();
+
+  if (!FOCUS || !by[FOCUS]){
+    head.textContent = 'Pick a player';
+    el.innerHTML = '<div class="empty">Choose someone beside the chart to see every hit ' +
+                   'between you, and to pick them out of the timeline.</div>';
+    return;
+  }
+  const d = by[FOCUS], hits = d.rows.length;
+  head.textContent = 'Every hit';
+  el.innerHTML = `<div class="dhead">
+      <span class="av" style="background:${tint(FOCUS)}">${mark()}</span>
+      <span>
+        <span class="nm">${esc(FOCUS)}${threat(d.taken, d.dealt)}</span>
+        <span class="sum">${hits} hit${hits === 1 ? '' : 's'} &middot;
+          you dealt <span class="d">${d.dealt}</span> &middot;
+          they dealt <span class="t">${d.taken}</span></span>
+      </span>
+    </div>` + table(d.rows);
+}
+
+// One place decides who is highlighted, so the shortlist, the scoreboard and
+// the chart cannot drift out of step.
+function setFocus(n){
+  FOCUS = (FOCUS === n) ? null : n;
+  document.getElementById('focusnote').textContent = FOCUS ? `showing ${FOCUS}` : '';
+  roster();
+  detail();
+  dimTimeline();
 }
 
 function table(rows){
