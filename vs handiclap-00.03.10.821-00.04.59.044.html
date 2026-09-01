@@ -755,10 +755,8 @@ function timeline(){
     const x1 = X(b.from), x2 = Math.max(X(b.to), x1 + 6);
     return `<g class="burst">
       <title>Took ${b.dmg} in ${(b.to - b.from).toFixed(1)}s</title>
-      <rect x="${x1.toFixed(1)}" y="0" width="${(x2 - x1).toFixed(1)}" height="${H}"
-            fill="var(--in)" opacity=".1"></rect>
-      <rect x="${x1.toFixed(1)}" y="${H - 2}" width="${(x2 - x1).toFixed(1)}" height="2"
-            fill="var(--in)" opacity=".75"></rect>
+      <rect x="${x1.toFixed(1)}" y="${mid}" width="${(x2 - x1).toFixed(1)}" height="${mid}"
+            fill="var(--in)" opacity=".12"></rect>
     </g>`;
   }).join('');
 
