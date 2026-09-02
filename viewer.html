@@ -13,6 +13,10 @@
     --ink:#e9edf3; --mid:#98a2b0; --soft:#687382;
     --accent:#6d8cf5; --accent-dim:rgba(109,140,245,.45);
     --out:#3fbf78; --in:#ef5a52; --magic:#a78bfa; --heal:#43b8e0;
+    /* A counter is the one thing here you did in the instant it mattered, so
+       it gets the hot gold rather than another cool UI colour. Three stops:
+       a near-white core, the gold itself, and a warm halo to bleed outward. */
+    --gold:#ffc74a; --gold-core:#fff3c4; --gold-halo:rgba(255,183,45,.75);
     --r:14px;
   }
   *{box-sizing:border-box;}
@@ -190,9 +194,29 @@
   .tl{position:relative;}
   .tl svg{display:block;width:100%;height:210px;overflow:visible;}
   /* The three duel marks take the colour of the stat that selects them. */
-  .mk[data-mk="counter"]{color:var(--accent);}
+  .mk[data-mk="counter"]{color:var(--gold);}
   .mk[data-mk="parried"]{color:var(--out);}
   .mk[data-mk="gotparried"]{color:var(--in);}
+  /* Stacked shadows rather than one: a tight near-white rim, the gold just
+     outside it, then a wide soft halo. That layering is what reads as a lit
+     object instead of a flat disc with a blur behind it. */
+  .mk[data-mk="counter"] .dot{
+    filter:drop-shadow(0 0 2px var(--gold-core))
+           drop-shadow(0 0 7px var(--gold))
+           drop-shadow(0 0 16px var(--gold-halo));
+  }
+  .mk[data-mk="counter"].on .dot{animation:emberpulse 2.2s ease-in-out infinite;}
+  @keyframes emberpulse{
+    0%,100%{filter:drop-shadow(0 0 2px var(--gold-core))
+                   drop-shadow(0 0 6px var(--gold))
+                   drop-shadow(0 0 13px var(--gold-halo));}
+    50%    {filter:drop-shadow(0 0 3px var(--gold-core))
+                   drop-shadow(0 0 11px var(--gold))
+                   drop-shadow(0 0 22px var(--gold-halo));}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .mk[data-mk="counter"].on .dot{animation:none;}
+  }
   /* Only the dot, and only while its stat is selected, answers the pointer.
      The dashed line runs the height of the chart and would swallow hovers
      meant for the bars behind it, and a mark that is not on screen has
@@ -364,11 +388,12 @@
     grid-column:1 / -1;font-size:.7rem;color:var(--soft);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  .duel.counter b{color:var(--accent);}
+  .duel.counter b{color:var(--gold);text-shadow:0 0 14px var(--gold-halo);}
   .duel.good b{color:var(--out);}
   .duel.bad b{color:var(--in);}
   .duel:hover{background:rgba(255,255,255,.05);border-color:var(--line-2);}
   .duel.on{background:rgba(109,140,245,.1);border-color:var(--accent-dim);}
+  .duel.counter.on{background:rgba(255,199,74,.1);border-color:rgba(255,199,74,.45);}
   .duel.good.on{background:rgba(63,191,120,.1);border-color:rgba(63,191,120,.45);}
   .duel.bad.on{background:rgba(239,90,82,.1);border-color:rgba(239,90,82,.45);}
   .duel.on .lbl{color:var(--ink);}
@@ -576,7 +601,11 @@ function start(){
   };
   r0.addEventListener('input', slide);
   r1.addEventListener('input', slide);
-  timelineTip(); render();
+  timelineTip();
+  // The marks are sized against the chart's own width, so a resize has to
+  // redraw them or they drift back into ovals.
+  window.addEventListener('resize', timeline);
+  render();
 }
 
 function render(){ totals(); roster(); detail(); duel(); parts(); spells(); excluded(); timeline(); }
@@ -704,6 +733,16 @@ function timeline(){
   const W = 1000, H = 200, mid = H/2, pad = 0;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
+  // The viewBox is stretched to the element rather than fitted to it, so one
+  // unit across is not one unit down and anything round drawn in these
+  // coordinates comes out an oval. At four pixels that did not show; at the
+  // size of its own hover target it would. Widening the x radius by the ratio
+  // between the two axes puts it back to a circle at any chart width.
+  const boxpx = svg.getBoundingClientRect();
+  const skew = (boxpx.width && boxpx.height)
+    ? (W / boxpx.width) * (boxpx.height / H) : 1;
+  const DOT = 11;                    // y-radius; the old invisible hit target
+
   const shown = counted();
   const span = Math.max(T1 - T0, 0.001);
   const X = t => ((t - T0)/span)*(W-2*pad)+pad;
@@ -755,13 +794,14 @@ function timeline(){
     if (!d) return '';
     const x = X(e.t).toFixed(1);
     const show = HILITE === d.k;
-    // The visible dot is 4px across, which is a hard thing to catch with a
-    // pointer, so an invisible one twice the size carries the hover.
+    // One shape now, drawn at the size the hover target used to be: what you
+    // can see and what you can hit are the same thing, which is the point.
+    const cy = DOT + 1;
     return `<g class="mk${show ? ' on' : ''}" data-mk="${d.k}" data-i="${i}" opacity="${show ? '1' : '0'}">
-      <line x1="${x}" y1="14" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
+      <line x1="${x}" y1="${cy + DOT + 2}" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
             stroke-dasharray="3 4" opacity=".55"></line>
-      <circle cx="${x}" cy="8" r="4.2" fill="currentColor"></circle>
-      <circle class="dot" cx="${x}" cy="8" r="11" fill="transparent"></circle>
+      <ellipse class="dot" cx="${x}" cy="${cy}" rx="${(DOT * skew).toFixed(1)}" ry="${DOT}"
+               fill="currentColor"></ellipse>
     </g>`;
   }).join('');
 
