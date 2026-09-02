@@ -193,7 +193,12 @@
   .mk[data-mk="counter"]{color:var(--accent);}
   .mk[data-mk="parried"]{color:var(--out);}
   .mk[data-mk="gotparried"]{color:var(--in);}
+  /* Only the dot, and only while its stat is selected, answers the pointer.
+     The dashed line runs the height of the chart and would swallow hovers
+     meant for the bars behind it, and a mark that is not on screen has
+     nothing to say. */
   .mk{pointer-events:none;}
+  .mk.on .dot{pointer-events:all;}
   .burst{pointer-events:auto;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
@@ -201,6 +206,9 @@
     padding:7px 10px;font-size:.78rem;white-space:nowrap;z-index:5;
     transform:translate(-50%,-100%);box-shadow:0 10px 30px -12px #000;
   }
+  /* The marks sit at the very top of the chart, where a tooltip drawn above
+     the cursor rides up over the heading. Theirs hangs below instead. */
+  .tip.below{transform:translate(-50%,0);}
   .rangewrap{position:relative;height:30px;margin-top:12px;}
   /* Without a visible rail the two handles float with nothing to hold, and it
      reads as decoration rather than a control. */
@@ -746,10 +754,14 @@ function timeline(){
     const d = DUEL.find(x => isHit(e) && x.test(e));
     if (!d) return '';
     const x = X(e.t).toFixed(1);
-    return `<g class="mk" data-mk="${d.k}" data-i="${i}" opacity="${HILITE === d.k ? '1' : '0'}">
+    const show = HILITE === d.k;
+    // The visible dot is 4px across, which is a hard thing to catch with a
+    // pointer, so an invisible one twice the size carries the hover.
+    return `<g class="mk${show ? ' on' : ''}" data-mk="${d.k}" data-i="${i}" opacity="${show ? '1' : '0'}">
       <line x1="${x}" y1="14" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
             stroke-dasharray="3 4" opacity=".55"></line>
       <circle cx="${x}" cy="8" r="4.2" fill="currentColor"></circle>
+      <circle class="dot" cx="${x}" cy="8" r="11" fill="transparent"></circle>
     </g>`;
   }).join('');
 
@@ -786,16 +798,31 @@ function timelineTip(){
   const svg = document.getElementById('svg');
   const tip = document.getElementById('tip'), tl = document.getElementById('tl');
   svg.addEventListener('mousemove', ev2 => {
-    const r = ev2.target;
-    if (r.tagName !== 'rect' || !r.dataset.i) { tip.style.opacity = 0; return; }
-    const e = DATA.events[+r.dataset.i];
-    const where = (e.flags||[]).filter(f => !isNoise(f));
-    tip.innerHTML = `${fmt(e.t)} &nbsp; ${e.dir==='out' ? 'you hit' : 'hit by'}
-      <b>${esc(foe(e))}</b> for <b>${e.amount}</b>` +
-      (where.length ? ` · ${esc(where.join(', '))}` : '');
+    const t = ev2.target;
+    // A mark is a group, so the hover lands on the circle inside it.
+    const mk = t.closest ? t.closest('.mk') : null;
+    const bar = (t.tagName === 'rect' && t.dataset.i) ? t : null;
+    const node = mk || bar;
+    if (!node) { tip.style.opacity = 0; return; }
+    const e = DATA.events[+node.dataset.i];
+
+    if (mk){
+      // On its own the dot says only that something happened at this point in
+      // the fight. The time is what you need to go and find it in the clip.
+      const d = DUEL.find(x => x.k === mk.dataset.mk);
+      tip.innerHTML = `${fmt(e.t)} &nbsp; ${esc(d ? d.tip : 'Marked')}
+        <b>${esc(foe(e))}</b>` + (e.amount ? ` for <b>${e.amount}</b>` : '');
+    } else {
+      const where = (e.flags||[]).filter(f => !isNoise(f));
+      tip.innerHTML = `${fmt(e.t)} &nbsp; ${e.dir==='out' ? 'you hit' : 'hit by'}
+        <b>${esc(foe(e))}</b> for <b>${e.amount}</b>` +
+        (where.length ? ` · ${esc(where.join(', '))}` : '');
+    }
+
     const box = tl.getBoundingClientRect();
+    tip.classList.toggle('below', !!mk);
     tip.style.left = (ev2.clientX - box.left) + 'px';
-    tip.style.top  = (ev2.clientY - box.top - 10) + 'px';
+    tip.style.top  = (ev2.clientY - box.top + (mk ? 16 : -10)) + 'px';
     tip.style.opacity = 1;
   });
   svg.addEventListener('mouseleave', () => tip.style.opacity = 0);
@@ -992,12 +1019,18 @@ function table(rows){
 
 // The three moments worth finding again: a swing of theirs your counter blunted,
 // a swing of theirs you turned away, and one of yours they turned away.
+// `tip` is how the moment reads on the chart, where the button's label is no
+// longer next to it: "Parried them" makes sense under a heading, but a mark
+// hanging over one instant wants to name what happened and who it was.
 const DUEL = [
   {k: 'counter', label: 'Counter reduced', tone: 'counter',
+   tip: 'Counter reduced a hit from',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Counter Reduced')},
   {k: 'parried', label: 'Parried them', tone: 'good',
+   tip: 'Parried',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Parry')},
   {k: 'gotparried', label: 'Got parried', tone: 'bad',
+   tip: 'Parried by',
    test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
 ];
 
