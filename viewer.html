@@ -863,11 +863,21 @@ function timeline(){
     <clipPath id="clipUp"><rect x="0" y="0" width="${W}" height="${mid}"></rect></clipPath>
     <clipPath id="clipDn"><rect x="0" y="${mid}" width="${W}" height="${mid}"></rect></clipPath>`;
 
+  // With a stat selected, the hits it picks out take that stat's colour and
+  // grow, so the chart, the lane and the chip all say the same thing. Without
+  // one, a vertex is coloured by who landed it.
+  const picked = DUEL.find(d => d.k === HILITE);
+  const TONE_VAR = {counter: 'gold', good: 'out', bad: 'in'};
   const dots = pts.map(p => {
-    const lit = (!FOCUS || foe(p.e) === FOCUS) && duelMatch(p.e);
+    const hit = duelMatch(p.e);
+    const lit = (!FOCUS || foe(p.e) === FOCUS) && hit;
+    const tone = picked && hit
+      ? TONE_VAR[picked.tone]
+      : (p.e.dir === 'out' ? 'out' : 'in');
+    const r = picked && lit ? 4.6 : 3.1;
     return `<ellipse cx="${X(p.t).toFixed(1)}" cy="${Y(p.v).toFixed(1)}"
-      rx="${(3.1 * skew).toFixed(1)}" ry="3.1"
-      fill="var(--${p.e.dir === 'out' ? 'out' : 'in'})"
+      rx="${(r * skew).toFixed(1)}" ry="${r}"
+      fill="var(--${tone})"
       opacity="${lit ? '1' : '.12'}" data-i="${idxOf.get(p.e)}"></ellipse>`;
   }).join('');
 
