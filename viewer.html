@@ -1095,10 +1095,10 @@ const DUEL = [
   {k: 'counter', label: 'Counter reduced', tone: 'counter',
    tip: 'Counter reduced a hit from',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Counter Reduced')},
-  {k: 'parried', label: 'Parry given', tone: 'good',
+  {k: 'parried', label: 'Parry received', tone: 'good',
    tip: 'Parried',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Parry')},
-  {k: 'gotparried', label: 'Parry received', tone: 'bad',
+  {k: 'gotparried', label: 'Parry given', tone: 'bad',
    tip: 'Parried by',
    test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
 ];
