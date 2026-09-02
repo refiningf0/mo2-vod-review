@@ -5,3 +5,6 @@ build/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Reports the tool writes next to the footage it read
+reports/

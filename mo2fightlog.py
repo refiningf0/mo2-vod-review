@@ -15,6 +15,28 @@ from mo2log import run
 from make_report import build
 
 
+def report_paths(video):
+    """Where a clip's report goes: a `reports` folder beside the footage.
+
+    Beside the footage because that is where you go looking for it. In a
+    folder of its own because the alternative is two more files dropped next
+    to every clip you run, until the folder you keep clips in is mostly not
+    clips. One place decides this, because when the drag-and-drop batch file
+    and the packaged app each decided it separately they disagreed, and half
+    the reports ended up in the tool's own folder.
+    """
+    folder = os.path.join(os.path.dirname(video), "reports")
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        # A read-only card or a share we cannot write to: better beside the
+        # clip than not at all.
+        folder = os.path.dirname(video)
+    stem = os.path.splitext(os.path.basename(video))[0]
+    base = os.path.join(folder, stem)
+    return base + ".json", base + ".html"
+
+
 def main():
     if len(sys.argv) < 2:
         print()
@@ -27,8 +49,7 @@ def main():
         print("\n  No such file:\n    %s\n" % video)
         return 1
 
-    stem = os.path.splitext(video)[0]
-    js, html = stem + ".json", stem + ".html"
+    js, html = report_paths(video)
 
     print()
     print("  Reading: %s" % os.path.basename(video))

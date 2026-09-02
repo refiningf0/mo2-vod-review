@@ -25,24 +25,13 @@ call :pick "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
 if not defined PY goto nopython
 
 set "VIDEO=%~1"
-set "NAME=%~n1"
-set "JSON=%NAME%.json"
-set "HTML=%NAME%.html"
 
-echo.
-echo   Reading: %~nx1
-echo   About 90 seconds per 2 minutes of footage.
-echo.
-
-%PY% mo2log.py "%VIDEO%" --fps 2 --out "%JSON%"
+rem One entry point, the same one the packaged .exe runs. This used to repeat
+rem the two steps itself and name the output files here, which is how the two
+rem of them drifted apart: this wrote them into the tool's folder, the .exe
+rem wrote them beside the clip. mo2fightlog.py decides that now, once.
+%PY% mo2fightlog.py "%VIDEO%"
 if errorlevel 1 goto failed
-
-%PY% make_report.py "%JSON%" "%HTML%"
-if errorlevel 1 goto failed
-
-echo.
-echo   Done. Opening %HTML%
-start "" "%HTML%"
 exit /b
 
 :pick
@@ -73,12 +62,12 @@ echo.
 exit /b
 
 :failed
+rem mo2fightlog.py has already said what went wrong and waited to be read,
+rem so this only adds the one thing it cannot know: how to re-run by hand
+rem with a crop of your own, using the Python that was actually found here.
 echo.
-echo   Something went wrong. The messages above say what.
-echo.
-echo   Most common cause: the combat log sits somewhere other than the
-echo   bottom-left of the frame, so nothing was found. Run it by hand with
-echo   your own crop:
+echo   If the log sits somewhere other than the bottom-left of the frame,
+echo   nothing will be found. Run it by hand with your own crop:
 echo.
 echo     %PY% mo2log.py "%VIDEO%" --crop 0,756,998,280
 echo.
