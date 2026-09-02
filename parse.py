@@ -22,7 +22,10 @@ import re
 from collections import Counter
 
 TS = re.compile(r"(\d{1,2})\s*[:.]\s*(\d{2})\s*[:.]\s*(\d{2})")
-FLAGS = re.compile(r"[\[\(\{]([A-Za-z][A-Za-z ]{1,18})[\]\)\}]")
+# Letters alone missed a flag OCR had dropped a mark into -- "[Par1.y]" is a
+# parry that went uncounted. The bracket is the real evidence that something
+# was written here; read_flags decides whether what is inside is a flag.
+FLAGS = re.compile(r"[\[\(\{]([A-Za-z][A-Za-z0-9 .,'’!\-]{1,18})[\]\)\}]")
 
 CHANNELS = ("combat", "nave", "local", "global", "say", "yell",
             "guild", "party", "whisper", "help", "trade")
@@ -118,6 +121,84 @@ def tidy_name(n):
 
 def is_weapon(n):
     return n.lower().strip("'s") in WEAPONS
+
+
+def _norm(n):
+    """Fold the letter confusions OCR makes most often, for comparison only."""
+    n = n.lower()
+    for a, b in (("rn", "m"), ("cl", "d"), ("vv", "w"), ("vy", "w"),
+                 ("0", "o"), ("5", "s"), ("8", "b"), ("2", "z")):
+        n = n.replace(a, b)
+    n = re.sub(r"[^a-z]", "", n)
+    # i, l and 1 are the single most confused glyph group in this font --
+    # "Qiade" and "Qlade" are one player. Folding them to one symbol lets the
+    # comparison see through it.
+    return n.replace("i", "l")
+
+
+# Everything the log prints inside the brackets after a hit: where it landed,
+# and what became of it.
+FLAG_WORDS = (
+    "Torso", "Head", "Arm", "Arms", "Hand", "Hands", "Leg", "Legs",
+    "Foot", "Feet", "Left Limb", "Right Limb", "Lower Body", "Upper Body",
+    "Parry", "Blocked", "Handle", "Equipment", "Impale", "Sting",
+    "Armor Pierced", "Counter Reduced", "Spread Shot", "Forceful Strike",
+    "Off-Hand",
+)
+FLAG_BY_NORM = {_norm(f): f for f in FLAG_WORDS}
+FLAG_KEYS = list(FLAG_BY_NORM)
+CHANNEL_KEYS = [_norm(c) for c in CHANNELS]
+
+
+def read_flags(body):
+    """The bracketed notes on a hit, put back into the log's own words.
+
+    OCR mangles these the way it mangles everything else -- "Parry" comes back
+    "Pany", "Armor Pierced" as "Arrnor Pierced", "Left Limb" as "Eeft Limb".
+    A misspelt flag is not a near miss but a miss: the report counts parries by
+    the name of the flag, so a "Pany" is a parry that did not happen and a
+    "Combkt" is a body part nobody has.
+
+    So each reading is matched against the words the log can actually print --
+    exactly where it can be, by similarity where it cannot. A reading that
+    lands closer to a channel name than to any flag is the channel bleeding
+    into the brackets, and goes. Anything matching nothing is kept as it reads,
+    but only if it still looks like a word, so a flag this list has not met
+    survives while debris does not.
+    """
+    out = []
+    for raw in FLAGS.findall(body):
+        f = " ".join(raw.split())
+        n = _norm(f)
+        if not n:
+            continue
+
+        # "Party" spelled correctly is the channel, whatever it resembles.
+        # The channel words are stripped from the line before this runs, so
+        # this only catches one that survived intact.
+        if n in CHANNEL_KEYS:
+            continue
+
+        hit = FLAG_BY_NORM.get(n)
+        if hit is None:
+            # Past that, flags are tried before channels and a tie goes to the
+            # flag.
+            # "Par1.y" reads as "pary", which is exactly as close to the
+            # channel "party" as to "parry" -- but this is the inside of a
+            # bracket on a damage line, which is where flags live and where
+            # a channel only ever turns up by accident.
+            m = difflib.get_close_matches(n, FLAG_KEYS, n=1, cutoff=0.66)
+            if m:
+                hit = FLAG_BY_NORM[m[0]]
+            elif difflib.get_close_matches(n, CHANNEL_KEYS, n=1, cutoff=0.7):
+                continue
+            elif re.fullmatch(r"[A-Za-z][A-Za-z ]*", f):
+                hit = f
+            else:
+                continue
+        if hit not in out:
+            out.append(hit)
+    return out
 
 
 DIGIT_FOR = {"S": "5", "s": "5", "O": "0", "o": "0", "l": "1", "I": "1",
@@ -240,8 +321,7 @@ def parse_line(raw, frame_t=None):
     if not body or not find_amount(body):
         return None
 
-    flags = [f.strip() for f in FLAGS.findall(body)
-             if f.strip().lower() not in CHANNELS and not f.strip().isdigit()]
+    flags = read_flags(body)
 
     amt = read_amount(body)
     if amt is None:
@@ -314,19 +394,6 @@ def _junk(name):
     if not re.search(r"[aeiou]", n):
         return True
     return False
-
-
-def _norm(n):
-    """Fold the letter confusions OCR makes most often, for comparison only."""
-    n = n.lower()
-    for a, b in (("rn", "m"), ("cl", "d"), ("vv", "w"), ("vy", "w"),
-                 ("0", "o"), ("5", "s"), ("8", "b"), ("2", "z")):
-        n = n.replace(a, b)
-    n = re.sub(r"[^a-z]", "", n)
-    # i, l and 1 are the single most confused glyph group in this font --
-    # "Qiade" and "Qlade" are one player. Folding them to one symbol lets the
-    # comparison see through it.
-    return n.replace("i", "l")
 
 
 def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):

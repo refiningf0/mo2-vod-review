@@ -1060,16 +1060,16 @@ function table(rows){
 // The three moments worth finding again: a swing of theirs your counter blunted,
 // a swing of theirs you turned away, and one of yours they turned away.
 // `tip` is how the moment reads on the chart, where the button's label is no
-// longer next to it: "Parried them" makes sense under a heading, but a mark
+// longer next to it: "Parry given" makes sense under a heading, but a mark
 // hanging over one instant wants to name what happened and who it was.
 const DUEL = [
   {k: 'counter', label: 'Counter reduced', tone: 'counter',
    tip: 'Counter reduced a hit from',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Counter Reduced')},
-  {k: 'parried', label: 'Parried them', tone: 'good',
+  {k: 'parried', label: 'Parry given', tone: 'good',
    tip: 'Parried',
    test: e => e.dir === 'in'  && (e.flags || []).includes('Parry')},
-  {k: 'gotparried', label: 'Got parried', tone: 'bad',
+  {k: 'gotparried', label: 'Parry received', tone: 'bad',
    tip: 'Parried by',
    test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
 ];
