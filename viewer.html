@@ -608,9 +608,11 @@ const foe = e => e.dir === 'out' ? e.target : e.who;
 const EXCLUDED = new Set();
 // One name at a time, to see just their exchange against the whole fight.
 let FOCUS = null;
-// A second way to read the chart: not "who", but "what happened". Kept apart
-// from FOCUS so one question is being asked of the timeline at a time.
-let HILITE = null;
+// A second way to read the chart: not "who", but "what happened". A set, so
+// the three can be asked about together -- they are different kinds of moment
+// and there is no reason wanting one should mean giving up another. Kept apart
+// from FOCUS, which asks about a player, so the chart answers one question.
+const HILITE = new Set();
 const inWindow = e => e.t >= T0 && e.t <= T1;
 const isHit = e => (e.kind || 'hit') === 'hit';
 const isHeal = e => e.kind === 'heal';
@@ -842,19 +844,18 @@ function timeline(){
     return d + ` L ${X(T1).toFixed(1)} ${CY(sel(cum[cum.length - 1]), up).toFixed(1)}`;
   };
 
-  // With a stat selected, the hits it picks out take that stat's colour, so
-  // the chart and the lane that selected them say the same thing.
-  const picked = DUEL.find(d => d.k === HILITE);
+  // A picked hit takes the colour of the lane that picked it, so with all
+  // three on you get gold, green and red side by side and can still tell which
+  // was which.
   const TONE_VAR = {counter: 'gold', good: 'out', bad: 'in'};
   let bars = '';
   DATA.events.forEach((e, i) => {
     if (!inWindow(e) || EXCLUDED.has(foe(e)) || !isHit(e)) return;
-    const hit = duelMatch(e);
-    const lit = (!FOCUS || foe(e) === FOCUS) && hit;
-    const tone = picked && hit ? TONE_VAR[picked.tone]
-                               : (e.dir === 'out' ? 'out' : 'in');
+    const pick = duelPick(e);
+    const lit = (!FOCUS || foe(e) === FOCUS) && (!HILITE.size || !!pick);
+    const tone = pick ? TONE_VAR[pick.tone] : (e.dir === 'out' ? 'out' : 'in');
     const up = e.dir === 'out', h = L(e.amount), x = X(e.t);
-    const w = picked && lit ? 7 : 5;
+    const w = pick && lit ? 7 : 5;
     bars += `<rect x="${(x - w / 2).toFixed(1)}" y="${(up ? mid - h : mid).toFixed(1)}"
       width="${w}" height="${h.toFixed(1)}" rx="1.5" fill="var(--${tone})"
       opacity="${lit ? '.92' : '.1'}" data-i="${i}"></rect>`;
@@ -1096,7 +1097,7 @@ function detail(){
 // the chart cannot drift out of step.
 function setFocus(n){
   FOCUS = (FOCUS === n) ? null : n;
-  if (FOCUS) HILITE = null;
+  if (FOCUS) HILITE.clear();
   document.getElementById('focusnote').textContent = FOCUS ? `showing ${FOCUS}` : '';
   roster();
   detail();
@@ -1141,9 +1142,16 @@ const DUEL = [
    test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
 ];
 
+// Which selected stat this hit belongs to, if any. With several selected each
+// hit still answers to exactly one of them, so it can be coloured by its own
+// rather than by whichever was clicked last.
+function duelPick(e){
+  if (!HILITE.size || !isHit(e)) return null;
+  return DUEL.find(d => HILITE.has(d.k) && d.test(e)) || null;
+}
+
 function duelMatch(e){
-  const d = DUEL.find(x => x.k === HILITE);
-  return !d || (isHit(e) && d.test(e));
+  return !HILITE.size || !!duelPick(e);
 }
 
 // Three silhouettes, not three colours: a chip has to be readable to someone
@@ -1178,7 +1186,7 @@ function duel(){
     const hint = rows.length
       ? `${d.label}: ${names || '—'}
 ` +
-        (HILITE === d.k ? 'Click to clear it from the chart'
+        (HILITE.has(d.k) ? 'Click to clear it from the chart'
                         : 'Click to mark these on the chart')
       : `No ${d.label.toLowerCase()} in this stretch`;
 
@@ -1188,9 +1196,9 @@ function duel(){
       `<i style="left:${(((e.t - T0) / span) * 100).toFixed(2)}%"
           data-i="${idxOf.get(e)}" data-mk="${d.k}"></i>`).join('');
 
-    return `<button class="lane ${d.tone}${HILITE === d.k ? ' on' : ''}${
+    return `<button class="lane ${d.tone}${HILITE.has(d.k) ? ' on' : ''}${
         rows.length ? '' : ' zero'}" data-h="${d.k}"
-        aria-pressed="${HILITE === d.k}" title="${esc(hint)}"
+        aria-pressed="${HILITE.has(d.k)}" title="${esc(hint)}"
         ${rows.length ? '' : 'disabled'}>
       <span class="lanelab">${DUEL_ICON[d.k]}${d.label}</span>
       <span class="lanetrack">${marks}</span>
@@ -1205,10 +1213,11 @@ function duel(){
 // Asking "who" and asking "what happened" at once usually leaves an empty
 // chart, so choosing one clears the other.
 function setHilite(k){
-  HILITE = (HILITE === k) ? null : k;
-  if (HILITE) FOCUS = null;
-  const d = DUEL.find(x => x.k === HILITE);
-  document.getElementById('focusnote').textContent = d ? `showing ${d.label.toLowerCase()}` : '';
+  if (HILITE.has(k)) HILITE.delete(k); else HILITE.add(k);
+  if (HILITE.size) FOCUS = null;
+  const on = DUEL.filter(d => HILITE.has(d.k)).map(d => d.label.toLowerCase());
+  document.getElementById('focusnote').textContent =
+    on.length ? `showing ${on.join(', ')}` : '';
   roster(); detail(); duel(); timeline();
 }
 
