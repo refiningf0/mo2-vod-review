@@ -219,36 +219,55 @@
   .xaxis span:first-child{transform:none;}
   .xaxis span:last-child{transform:translateX(-100%);}
 
-  /* One lane, not two. The reference this follows splits its markers by team;
-     here every mark is about the same duel, so what separates them is which
-     kind of moment it was -- size for weight, colour for whose it was. */
-  .strip{
-    position:relative;margin:7px 0 0 42px;height:34px;border-radius:8px;
-    background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
-    border:1px solid var(--line);
+  /* One lane per stat, each its own row: the label says which, the row holds
+     only that stat's moments, and the whole row is the control -- clicking
+     anywhere on it marks those hits on the chart above. That replaced a
+     separate set of buttons, which meant the count, the marks and the control
+     were three things in two places. */
+  .lanes{margin:7px 0 0 42px;display:flex;flex-direction:column;gap:5px;}
+  .lane{
+    position:relative;display:grid;grid-template-columns:132px 1fr 30px;
+    align-items:center;gap:10px;width:100%;
+    height:28px;padding:0 9px;border-radius:7px;cursor:pointer;text-align:left;
+    background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));
+    border:1px solid var(--line);color:var(--mid);font:inherit;
+    transition:background .12s,border-color .12s,color .12s;
   }
-  .striplab{
-    position:absolute;left:9px;top:50%;transform:translateY(-50%);
-    font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
-    color:var(--soft);font-weight:600;pointer-events:none;
+  .lanelab{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
+    white-space:nowrap;overflow:hidden;
   }
-  .dots{position:absolute;inset:0;}
-  .dots i{
+  .lanelab svg{width:13px;height:13px;flex:none;color:var(--tone);}
+  .lanetrack{position:relative;height:100%;}
+  .lanen{
+    font-size:.78rem;font-weight:700;text-align:right;
+    font-variant-numeric:tabular-nums;color:var(--tone);
+  }
+  .lane i{
     position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
-    transform:translate(-50%,-50%);background:var(--tone);cursor:default;
-    box-shadow:0 0 7px -1px var(--tone);transition:opacity .12s;
+    transform:translate(-50%,-50%);background:var(--tone);
+    box-shadow:0 0 7px -1px var(--tone);
   }
   /* A counter is the heaviest of the three, so it reads largest. */
-  .dots i.big{width:15px;height:15px;box-shadow:0 0 11px -1px var(--tone);}
-  .dots i.counter{--tone:var(--gold);}
-  .dots i.good{--tone:var(--out);}
-  .dots i.bad{--tone:var(--in);}
-  .dots i.off{opacity:.16;box-shadow:none;}
-  /* A counter keeps the lit-ember treatment it had on the chart: stacked
-     shadows rather than one -- a tight near-white rim, the gold just outside
-     it, then a wide halo. That layering reads as a lit object instead of a
-     flat disc with a blur behind it. */
-  .dots i.counter{
+  .lane.counter i{width:14px;height:14px;}
+  .lane.counter{--tone:var(--gold);}
+  .lane.good{--tone:var(--out);}
+  .lane.bad{--tone:var(--in);}
+  .lane:hover{background:rgba(255,255,255,.06);border-color:var(--line-2);}
+  .lane.on{
+    color:var(--ink);
+    background:color-mix(in srgb,var(--tone) 12%,transparent);
+    border-color:color-mix(in srgb,var(--tone) 45%,transparent);
+  }
+  /* Nothing to find, so nothing to click -- but the row stays, because "none"
+     is an answer and a row that disappears is not. */
+  .lane.zero{opacity:.38;cursor:default;}
+  .lane:focus-visible{outline:2px solid var(--tone);outline-offset:2px;}
+
+  /* A counter keeps the lit-ember treatment: stacked shadows rather than one,
+     which reads as a lit object instead of a flat disc with a blur behind it. */
+  .lane.counter i{
     box-shadow:0 0 0 1px var(--gold-core) inset,
                0 0 7px var(--gold), 0 0 16px var(--gold-halo);
     animation:emberpulse 2.2s ease-in-out infinite;
@@ -259,10 +278,8 @@
     50%    {box-shadow:0 0 0 1px var(--gold-core) inset,
                        0 0 11px var(--gold), 0 0 22px var(--gold-halo);}
   }
-  @media (prefers-reduced-motion:reduce){
-    .dots i.counter{animation:none;}
-  }
-  .dots i.counter.off{box-shadow:none;animation:none;}
+  @media (prefers-reduced-motion:reduce){ .lane.counter i{animation:none;} }
+
   .burst{pointer-events:auto;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
@@ -305,33 +322,6 @@
     background:var(--accent);border:1.5px solid #0b0d11;
   }
   .rangewrap input::-webkit-slider-thumb:hover{filter:brightness(1.15);}
-  /* The three moments worth finding again, sitting under the chart they mark
-     rather than in a panel further down the page. Small, because they annotate
-     the chart -- they are not a third set of headline figures. */
-  .duelbar{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
-  .dchip{
-    display:inline-flex;align-items:center;gap:7px;
-    padding:6px 11px 6px 9px;border-radius:9px;cursor:pointer;
-    background:rgba(255,255,255,.025);border:1px solid var(--line);
-    color:var(--mid);font:inherit;font-size:.75rem;line-height:1;
-    transition:background .12s,border-color .12s,color .12s;
-  }
-  .dchip svg{width:14px;height:14px;flex:none;}
-  .dchip b{font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums;}
-  /* The icon and the count carry the stat's colour; the word stays quiet until
-     the stat is the one being asked about. */
-  .dchip.counter{--tone:var(--gold);}
-  .dchip.good{--tone:var(--out);}
-  .dchip.bad{--tone:var(--in);}
-  .dchip svg,.dchip b{color:var(--tone);}
-  .dchip:hover{background:rgba(255,255,255,.055);border-color:var(--line-2);}
-  .dchip.on{color:var(--ink);background:color-mix(in srgb,var(--tone) 13%,transparent);
-            border-color:color-mix(in srgb,var(--tone) 45%,transparent);}
-  /* Nothing to find, so nothing to click -- but still shown, because "none"
-     is an answer and a missing row is not. */
-  .dchip.zero{opacity:.4;cursor:default;}
-  .dchip:focus-visible{outline:2px solid var(--tone);outline-offset:2px;}
-
   .scrub{
     display:flex;justify-content:space-between;align-items:center;gap:12px;
     font-size:.74rem;margin-top:6px;font-variant-numeric:tabular-nums;
@@ -526,13 +516,9 @@
               </div>
             </div>
             <div class="xaxis" id="xaxis"></div>
-            <div class="strip">
-              <span class="striplab">Counters &amp; parries</span>
-              <div class="dots" id="strip"></div>
-            </div>
+            <div class="lanes" id="duel"></div>
             <div class="tip" id="tip"></div>
           </div>
-          <div class="duelbar" id="duel"></div>
           <div class="rangewrap">
             <div class="rail"><div class="sel" id="sel"></div></div>
             <input type="range" id="r0" min="0" max="100" value="0"
@@ -808,81 +794,72 @@ function niceStep(reach, lines){
   return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
 }
 
-// The chart is a running difference: what you have dealt minus what you have
-// taken, from the left edge of the window. Zero sits in the middle, so being
-// above the line means you are ahead on the exchange and the depth below it is
-// how far behind you fell. A total alone cannot show that a fight was won
-// early and lost late; this can.
+// Bars for the swings, two faint lines for the running totals behind them.
+// The bars answer "how hard, and who", which is what you look at a fight for;
+// the lines carry the momentum underneath without competing for attention.
 //
-// Every vertex is one hit, which keeps the detail the old bars carried -- each
-// dot is hoverable and coloured by who landed it -- while the line itself
-// answers the question the bars could not.
+// The two are on different scales on purpose. A single hit tops out around
+// eighty and a fight's total runs to thousands, so one scale would flatten
+// every bar to nothing. The labelled axis is the bars' -- it is the one you
+// read values off -- and the lines are shape rather than quantity.
 function timeline(){
   const svg = document.getElementById('svg');
-  const W = 1000, H = 200, mid = H / 2;
+  const W = 1000, H = 200, mid = H / 2, cap = mid - 10;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-
-  // preserveAspectRatio is "none", so the viewBox is stretched to the element
-  // and a circle drawn in these units comes out an oval. Widening the x radius
-  // by the ratio between the axes puts it back to round at any width.
-  const boxpx = svg.getBoundingClientRect();
-  const skew = (boxpx.width && boxpx.height)
-    ? (W / boxpx.width) * (boxpx.height / H) : 1;
 
   const span = Math.max(T1 - T0, 0.001);
   const X = t => ((t - T0) / span) * W;
   const idxOf = new Map(DATA.events.map((e, i) => [e, i]));
-  const shown = counted().filter(isHit).slice().sort((a, b) => a.t - b.t);
+  const shown = counted().filter(isHit);
 
-  let net = 0;
-  const pts = shown.map(e => ({ t: e.t, v: (net += e.dir === 'out' ? e.amount : -e.amount), e }));
-
-  // A symmetric scale, so the middle of the chart is always zero and the two
-  // directions stay comparable by eye.
-  const reach = Math.max(1, ...pts.map(p => Math.abs(p.v)));
-  const step = niceStep(reach, 4);   // ~4 lines each side of zero
-  const top = Math.ceil(reach / step) * step;
-  const Y = v => mid - (v / top) * mid;
+  // The axis is the size of a single hit, out above and in below.
+  const peak = Math.max(1, ...shown.map(e => e.amount));
+  const step = niceStep(peak, 3);
+  const top = Math.ceil(peak / step) * step;
+  const L = a => Math.max(2.5, (a / top) * cap);   // a parry does nothing, but happened
 
   let grid = '';
   for (let v = -top; v <= top + 1e-6; v += step){
-    const zero = Math.abs(v) < 1e-6, y = Y(v).toFixed(1);
+    const zero = Math.abs(v) < 1e-6, y = (mid - (v / top) * cap).toFixed(1);
     grid += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="var(--line${zero ? '-2' : ''})"
-             stroke-width="1" opacity="${zero ? '1' : '.55'}"></line>`;
+             stroke-width="1" opacity="${zero ? '1' : '.5'}"></line>`;
   }
 
-  const line = pts.length
-    ? `M ${X(T0).toFixed(1)} ${mid} ` +
-      pts.map(p => `L ${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ')
-    : '';
-  const area = line ? `${line} L ${X(pts[pts.length - 1].t).toFixed(1)} ${mid} Z` : '';
+  // Running totals, each on its own side, scaled to whichever ran higher so
+  // the two stay comparable with each other.
+  const sorted = shown.slice().sort((a, b) => a.t - b.t);
+  let co = 0, ci = 0;
+  const cum = sorted.map(e => {
+    if (e.dir === 'out') co += e.amount; else ci += e.amount;
+    return {t: e.t, o: co, i: ci};
+  });
+  const cpeak = Math.max(co, ci, 1);
+  const CY = (v, up) => up ? mid - (v / cpeak) * cap : mid + (v / cpeak) * cap;
+  const path = (sel, up) => {
+    if (!cum.length) return '';
+    let d = `M ${X(T0).toFixed(1)} ${mid}`;
+    cum.forEach(p => { d += ` L ${X(p.t).toFixed(1)} ${CY(sel(p), up).toFixed(1)}`; });
+    return d + ` L ${X(T1).toFixed(1)} ${CY(sel(cum[cum.length - 1]), up).toFixed(1)}`;
+  };
 
-  // Clipped at the zero line rather than split into two paths: the fill and
-  // the stroke change colour exactly where they cross, with no seam.
-  const halves = `
-    <clipPath id="clipUp"><rect x="0" y="0" width="${W}" height="${mid}"></rect></clipPath>
-    <clipPath id="clipDn"><rect x="0" y="${mid}" width="${W}" height="${mid}"></rect></clipPath>`;
-
-  // With a stat selected, the hits it picks out take that stat's colour and
-  // grow, so the chart, the lane and the chip all say the same thing. Without
-  // one, a vertex is coloured by who landed it.
+  // With a stat selected, the hits it picks out take that stat's colour, so
+  // the chart and the lane that selected them say the same thing.
   const picked = DUEL.find(d => d.k === HILITE);
   const TONE_VAR = {counter: 'gold', good: 'out', bad: 'in'};
-  const dots = pts.map(p => {
-    const hit = duelMatch(p.e);
-    const lit = (!FOCUS || foe(p.e) === FOCUS) && hit;
-    const tone = picked && hit
-      ? TONE_VAR[picked.tone]
-      : (p.e.dir === 'out' ? 'out' : 'in');
-    const r = picked && lit ? 4.6 : 3.1;
-    return `<ellipse cx="${X(p.t).toFixed(1)}" cy="${Y(p.v).toFixed(1)}"
-      rx="${(r * skew).toFixed(1)}" ry="${r}"
-      fill="var(--${tone})"
-      opacity="${lit ? '1' : '.12'}" data-i="${idxOf.get(p.e)}"></ellipse>`;
-  }).join('');
+  let bars = '';
+  DATA.events.forEach((e, i) => {
+    if (!inWindow(e) || EXCLUDED.has(foe(e)) || !isHit(e)) return;
+    const hit = duelMatch(e);
+    const lit = (!FOCUS || foe(e) === FOCUS) && hit;
+    const tone = picked && hit ? TONE_VAR[picked.tone]
+                               : (e.dir === 'out' ? 'out' : 'in');
+    const up = e.dir === 'out', h = L(e.amount), x = X(e.t);
+    const w = picked && lit ? 7 : 5;
+    bars += `<rect x="${(x - w / 2).toFixed(1)}" y="${(up ? mid - h : mid).toFixed(1)}"
+      width="${w}" height="${h.toFixed(1)}" rx="1.5" fill="var(--${tone})"
+      opacity="${lit ? '.92' : '.1'}" data-i="${i}"></rect>`;
+  });
 
-  // Still found across the whole fight and merely clipped to the view, so one
-  // straddling an edge does not vanish when you zoom in on it.
   const bands = bursts()
     .filter(b => b.to >= T0 && b.from <= T1)
     .map(b => {
@@ -892,21 +869,20 @@ function timeline(){
               fill="var(--in)" opacity=".07"></rect>`;
     }).join('');
 
-  svg.innerHTML = `<defs>${halves}</defs>
-    <g>${bands}</g>
-    <g>${grid}</g>
-    <path d="${area}" fill="var(--out)" opacity=".17" clip-path="url(#clipUp)"></path>
-    <path d="${area}" fill="var(--in)"  opacity=".17" clip-path="url(#clipDn)"></path>
-    <path d="${line}" fill="none" stroke="var(--out)" stroke-width="1.7"
-          stroke-linejoin="round" clip-path="url(#clipUp)"></path>
-    <path d="${line}" fill="none" stroke="var(--in)"  stroke-width="1.7"
-          stroke-linejoin="round" clip-path="url(#clipDn)"></path>
-    <g id="hits">${dots}</g>`;
+  svg.innerHTML =
+    `<g>${bands}</g>
+     <g>${grid}</g>
+     <path d="${path(p => p.o, true)}"  fill="none" stroke="var(--out)"
+           stroke-width="1.5" opacity=".38"></path>
+     <path d="${path(p => p.i, false)}" fill="none" stroke="var(--in)"
+           stroke-width="1.5" opacity=".38"></path>
+     <g id="hits">${bars}</g>`;
 
-  // The scale, mirrored: the number is how far from even, not a signed value.
+  // Mirrored: the number is the size of a hit, and the side says whose.
   let yl = '';
   for (let v = top; v >= -top - 1e-6; v -= step){
-    yl += `<span style="top:${((Y(v) / H) * 100).toFixed(2)}%">${Math.round(Math.abs(v))}</span>`;
+    yl += `<span style="top:${(((mid - (v / top) * cap) / H) * 100).toFixed(2)}%">${
+      Math.round(Math.abs(v))}</span>`;
   }
   document.getElementById('ylab').innerHTML = yl;
 
@@ -915,17 +891,6 @@ function timeline(){
     xl += `<span style="left:${i * 20}%">${fmt(T0 + span * i / 5)}</span>`;
   }
   document.getElementById('xaxis').innerHTML = xl;
-
-  document.getElementById('strip').innerHTML = DATA.events
-    .filter(e => inWindow(e) && !EXCLUDED.has(foe(e)) && isHit(e))
-    .map(e => {
-      const d = DUEL.find(x => x.test(e));
-      if (!d) return '';
-      return `<i class="${d.tone}${d.k === 'counter' ? ' big' : ''}${
-        !HILITE || HILITE === d.k ? '' : ' off'}"
-        style="left:${(((e.t - T0) / span) * 100).toFixed(2)}%"
-        data-i="${idxOf.get(e)}" data-mk="${d.k}"></i>`;
-    }).join('');
 
   windowBar();
 }
@@ -941,7 +906,7 @@ function timelineTip(){
   wrap.addEventListener('mousemove', ev2 => {
     const t = ev2.target;
     const mark = t.tagName === 'I' && t.dataset.i ? t : null;
-    const dot  = t.tagName === 'ellipse' && t.dataset.i ? t : null;
+    const dot  = t.tagName === 'rect' && t.dataset.i ? t : null;
     const node = mark || dot;
     if (!node) { tip.style.opacity = 0; return; }
     const e = DATA.events[+node.dataset.i];
@@ -1196,8 +1161,10 @@ const DUEL_ICON = {
 };
 
 function duel(){
-  const ev = counted().filter(isHit);
   const el = document.getElementById('duel');
+  const span = Math.max(T1 - T0, 0.001);
+  const idxOf = new Map(DATA.events.map((e, i) => [e, i]));
+  const ev = counted().filter(isHit);
 
   el.innerHTML = DUEL.map(d => {
     const rows = ev.filter(d.test);
@@ -1206,24 +1173,32 @@ function duel(){
       const n = e.dir === 'out' ? e.target : e.who;
       if (n && n !== 'You') who[n] = (who[n] || 0) + 1;
     });
-    // The names no longer fit on the face of a chip, so they move to the
-    // tooltip rather than being dropped.
     const names = Object.entries(who).sort((a, b) => b[1] - a[1])
-      .map(([n, c]) => `${n}${c > 1 ? ' \u00d7' + c : ''}`).join(', ');
+      .map(([n, c]) => `${n}${c > 1 ? ' ×' + c : ''}`).join(', ');
     const hint = rows.length
-      ? `${d.label}: ${names || '\u2014'}\n` +
+      ? `${d.label}: ${names || '—'}
+` +
         (HILITE === d.k ? 'Click to clear it from the chart'
                         : 'Click to mark these on the chart')
       : `No ${d.label.toLowerCase()} in this stretch`;
-    return `<button class="dchip ${d.tone}${HILITE === d.k ? ' on' : ''}${
+
+    // Positioned against the same window the chart uses, so a mark sits under
+    // the moment it belongs to.
+    const marks = rows.map(e =>
+      `<i style="left:${(((e.t - T0) / span) * 100).toFixed(2)}%"
+          data-i="${idxOf.get(e)}" data-mk="${d.k}"></i>`).join('');
+
+    return `<button class="lane ${d.tone}${HILITE === d.k ? ' on' : ''}${
         rows.length ? '' : ' zero'}" data-h="${d.k}"
         aria-pressed="${HILITE === d.k}" title="${esc(hint)}"
         ${rows.length ? '' : 'disabled'}>
-      ${DUEL_ICON[d.k]}<span>${d.label}</span><b>${rows.length}</b>
+      <span class="lanelab">${DUEL_ICON[d.k]}${d.label}</span>
+      <span class="lanetrack">${marks}</span>
+      <span class="lanen">${rows.length}</span>
     </button>`;
   }).join('');
 
-  el.querySelectorAll('.dchip').forEach(b =>
+  el.querySelectorAll('.lane').forEach(b =>
     b.addEventListener('click', () => setHilite(b.dataset.h)));
 }
 
