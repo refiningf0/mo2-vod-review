@@ -95,7 +95,14 @@
   .strip .sub{font-size:.72rem;color:var(--soft);}
   .strip .dealt b{color:var(--out);} .strip .taken b{color:var(--in);}
 
-  .lead-grid{display:grid;grid-template-columns:302px 1fr;gap:22px;align-items:start;}
+  /* Stretch, not start: the roster is the taller column, and letting the chart
+     column fill the same height gives the slider somewhere to sit. It used to
+     stop wherever the chart ended, leaving it stranded mid-card with the
+     roster still running on beside it. */
+  .lead-grid{display:grid;grid-template-columns:302px 1fr;gap:22px;align-items:stretch;}
+  .chart{display:flex;flex-direction:column;}
+  /* Everything above is measured; this pushes the controls to the bottom edge. */
+  .chart .rangewrap{margin-top:auto;}
   .picks h2{margin-bottom:12px;}
   .chart h2{margin-bottom:14px;}
   .focusnote{
@@ -265,6 +272,33 @@
     background:var(--accent);border:1.5px solid #0b0d11;
   }
   .rangewrap input::-webkit-slider-thumb:hover{filter:brightness(1.15);}
+  /* The three moments worth finding again, sitting under the chart they mark
+     rather than in a panel further down the page. Small, because they annotate
+     the chart -- they are not a third set of headline figures. */
+  .duelbar{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
+  .dchip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:6px 11px 6px 9px;border-radius:9px;cursor:pointer;
+    background:rgba(255,255,255,.025);border:1px solid var(--line);
+    color:var(--mid);font:inherit;font-size:.75rem;line-height:1;
+    transition:background .12s,border-color .12s,color .12s;
+  }
+  .dchip svg{width:14px;height:14px;flex:none;}
+  .dchip b{font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums;}
+  /* The icon and the count carry the stat's colour; the word stays quiet until
+     the stat is the one being asked about. */
+  .dchip.counter{--tone:var(--gold);}
+  .dchip.good{--tone:var(--out);}
+  .dchip.bad{--tone:var(--in);}
+  .dchip svg,.dchip b{color:var(--tone);}
+  .dchip:hover{background:rgba(255,255,255,.055);border-color:var(--line-2);}
+  .dchip.on{color:var(--ink);background:color-mix(in srgb,var(--tone) 13%,transparent);
+            border-color:color-mix(in srgb,var(--tone) 45%,transparent);}
+  /* Nothing to find, so nothing to click -- but still shown, because "none"
+     is an answer and a missing row is not. */
+  .dchip.zero{opacity:.4;cursor:default;}
+  .dchip:focus-visible{outline:2px solid var(--tone);outline-offset:2px;}
+
   .scrub{
     display:flex;justify-content:space-between;align-items:center;gap:12px;
     font-size:.74rem;margin-top:6px;font-variant-numeric:tabular-nums;
@@ -455,6 +489,7 @@
             <svg id="svg" preserveAspectRatio="none"></svg>
             <div class="tip" id="tip"></div>
           </div>
+          <div class="duelbar" id="duel"></div>
           <div class="rangewrap">
             <div class="rail"><div class="sel" id="sel"></div></div>
             <input type="range" id="r0" min="0" max="100" value="0"
@@ -474,12 +509,6 @@
     <div class="card" id="detailcard">
       <h2 id="detailhead">Pick a player</h2>
       <div id="detail"></div>
-    </div>
-
-    <div class="card">
-      <h2>Parries &amp; counters</h2>
-      <div class="prow" id="duel"></div>
-      <p class="note" id="duelnote"></p>
     </div>
 
     <div class="card">
@@ -1079,6 +1108,20 @@ function duelMatch(e){
   return !d || (isHit(e) && d.test(e));
 }
 
+// Three silhouettes, not three colours: a chip has to be readable to someone
+// who cannot tell the gold from the green. An arrow onto a floor for damage
+// pushed down, a guarded shield for a swing you turned, crossed blades for one
+// of yours that was turned.
+const glyph = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+const DUEL_ICON = {
+  counter: glyph('<path d="M12 4v8"/><path d="M8.5 8.5 12 12l3.5-3.5"/><path d="M6 17.5h12"/>'),
+  parried: glyph('<path d="M12 3.4l6.3 2.7v4.5c0 3.8-2.6 7-6.3 8-3.7-1-6.3-4.2-6.3-8V6.1z"/>' +
+               '<path d="M9.4 11.5l1.8 1.8 3.4-3.5"/>'),
+  gotparried: glyph('<path d="M5.2 5.2 14 14"/><path d="M18.8 5.2 10 14"/>' +
+                  '<path d="M4.6 19.4l2.6-2.6"/><path d="M19.4 19.4l-2.6-2.6"/>'),
+};
+
 function duel(){
   const ev = counted().filter(isHit);
   const el = document.getElementById('duel');
@@ -1090,22 +1133,25 @@ function duel(){
       const n = e.dir === 'out' ? e.target : e.who;
       if (n && n !== 'You') who[n] = (who[n] || 0) + 1;
     });
+    // The names no longer fit on the face of a chip, so they move to the
+    // tooltip rather than being dropped.
     const names = Object.entries(who).sort((a, b) => b[1] - a[1])
-      .map(([n, c]) => `${esc(n)}${c > 1 ? ' \u00d7' + c : ''}`).join(', ');
-    return `<button class="part duel ${d.tone}${HILITE === d.k ? ' on' : ''}${
-        rows.length ? '' : ' zero'}" data-h="${d.k}" aria-pressed="${HILITE === d.k}">
-      <span class="lbl">${d.label}</span>
-      <b>${rows.length}</b>
-      <span class="who">${names || '\u2014'}</span>
+      .map(([n, c]) => `${n}${c > 1 ? ' \u00d7' + c : ''}`).join(', ');
+    const hint = rows.length
+      ? `${d.label}: ${names || '\u2014'}\n` +
+        (HILITE === d.k ? 'Click to clear it from the chart'
+                        : 'Click to mark these on the chart')
+      : `No ${d.label.toLowerCase()} in this stretch`;
+    return `<button class="dchip ${d.tone}${HILITE === d.k ? ' on' : ''}${
+        rows.length ? '' : ' zero'}" data-h="${d.k}"
+        aria-pressed="${HILITE === d.k}" title="${esc(hint)}"
+        ${rows.length ? '' : 'disabled'}>
+      ${DUEL_ICON[d.k]}<span>${d.label}</span><b>${rows.length}</b>
     </button>`;
   }).join('');
 
-  el.querySelectorAll('.duel').forEach(b =>
+  el.querySelectorAll('.dchip').forEach(b =>
     b.addEventListener('click', () => setHilite(b.dataset.h)));
-
-  document.getElementById('duelnote').textContent = HILITE
-    ? 'Click it again to put the whole fight back on the chart.'
-    : 'Click one to pick those moments out of the chart.';
 }
 
 // Asking "who" and asking "what happened" at once usually leaves an empty
