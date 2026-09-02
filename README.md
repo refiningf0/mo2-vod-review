@@ -14,7 +14,8 @@ why there's nothing to install.
 **Drag your video onto `DROP-VIDEO-HERE.bat`.**
 
 That's the whole thing. Roughly 40 seconds per minute of footage. The report
-opens when it's done, and lands in a `reports` folder next to your clip.
+opens when it's done, and lands in the `reports` folder inside the tool's own
+folder — every report in one place, whatever folder the clip came from.
 
 By hand, if you'd rather:
 

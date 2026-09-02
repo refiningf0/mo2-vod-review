@@ -15,22 +15,41 @@ from mo2log import run
 from make_report import build
 
 
-def report_paths(video):
-    """Where a clip's report goes: a `reports` folder beside the footage.
+def app_dir():
+    """The folder the tool lives in, as the person running it sees it.
 
-    Beside the footage because that is where you go looking for it. In a
-    folder of its own because the alternative is two more files dropped next
-    to every clip you run, until the folder you keep clips in is mostly not
-    clips. One place decides this, because when the drag-and-drop batch file
-    and the packaged app each decided it separately they disagreed, and half
-    the reports ended up in the tool's own folder.
+    Deliberately not mo2log._here(): inside a PyInstaller build that resolves
+    to the temporary directory the bundle unpacks itself into, which is gone
+    the moment the run ends. What is wanted here is the folder holding
+    MO2FightLog.exe -- somewhere a person can open.
     """
-    folder = os.path.join(os.path.dirname(video), "reports")
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def report_paths(video):
+    """Where a clip's report goes: a `reports` folder inside the tool's folder.
+
+    All of them in one place, beside the program that wrote them. Putting each
+    report next to its own clip seemed tidier and was not: a `reports` folder
+    appeared in every folder a clip had ever been dragged out of, and finding
+    an old report meant remembering which one that was.
+
+    One place decides this. When the drag-and-drop batch file and the packaged
+    app each decided it separately they disagreed, and half the reports landed
+    somewhere other than where the other half went.
+
+    A clip run twice overwrites its own report, which is the point. Two
+    different clips sharing a filename would land on each other, which no
+    clip named after a date and time is going to do.
+    """
+    folder = os.path.join(app_dir(), "reports")
     try:
         os.makedirs(folder, exist_ok=True)
     except OSError:
-        # A read-only card or a share we cannot write to: better beside the
-        # clip than not at all.
+        # Unzipped somewhere unwritable. Beside the clip is not where these are
+        # meant to go, but it beats not writing them at all.
         folder = os.path.dirname(video)
     stem = os.path.splitext(os.path.basename(video))[0]
     base = os.path.join(folder, stem)

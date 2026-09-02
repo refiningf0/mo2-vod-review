@@ -11,7 +11,7 @@ Mortal Online 2 never writes its combat log to disk — it only draws it on scre
 ## Commands
 
 ```bash
-# The whole thing, the way the .exe runs it (writes into <clip folder>/reports/)
+# The whole thing, the way the .exe runs it (writes into <tool folder>/reports/)
 python mo2fightlog.py "clip.mp4"
 
 # The two stages by hand, when you want an intermediate JSON
@@ -76,7 +76,7 @@ Each of these was arrived at by something breaking. Undoing one looks like a sim
 - **Names and flags snap to a vocabulary.** A misspelt flag is a miss, not a near miss: parries are counted by matching the name, so `Pany` was a parry that never happened.
 - **The word boundary before `for` is preferred, not required.** Requiring it discarded 180 of 2,624 lines because OCR loses that space so often.
 - **Everything speaks UTF-8 explicitly.** OCR emits bytes the Windows default codec cannot decode, which used to kill whole frames silently.
-- **Output location is decided once**, in `report_paths()`. It was decided in two places before and they disagreed, so reports landed in the tool's own folder half the time.
+- **Output location is decided once**, in `report_paths()`, and it is the tool's own `reports` folder. It was decided in two places before and they disagreed; then it followed the clip, which left a `reports` folder in every folder a clip had been dragged out of.
 
 ## The report
 
