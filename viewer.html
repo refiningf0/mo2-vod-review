@@ -568,10 +568,10 @@ function start(){
   };
   r0.addEventListener('input', slide);
   r1.addEventListener('input', slide);
-  timeline(); render();
+  timelineTip(); render();
 }
 
-function render(){ totals(); roster(); detail(); duel(); parts(); spells(); excluded(); dimTimeline(); }
+function render(){ totals(); roster(); detail(); duel(); parts(); spells(); excluded(); timeline(); }
 
 function spells(){
   const ev = counted();
@@ -624,33 +624,12 @@ function excluded(){
   });
 }
 
-// Keep the chart honest about what the numbers above it are counting: grey
-// out the time outside the window, and dim any hit either the window or an
-// exclusion has taken out.
-function dimTimeline(){
-  const W = 1000, X = t => (t / DUR) * W;
-  const l = document.getElementById('maskL'), r = document.getElementById('maskR');
-  if (l) l.setAttribute('width', Math.max(0, X(T0)).toFixed(1));
-  if (r) {
-    r.setAttribute('x', X(T1).toFixed(1));
-    r.setAttribute('width', Math.max(0, W - X(T1)).toFixed(1));
-  }
-  document.querySelectorAll('#hits rect').forEach(n => {
-    const e = DATA.events[+n.dataset.i];
-    const on = inWindow(e) && !EXCLUDED.has(foe(e)) &&
-               (!FOCUS || foe(e) === FOCUS) && duelMatch(e);
-    n.setAttribute('opacity', on ? '.9' : (FOCUS || HILITE ? '.08' : '.18'));
-  });
-
-  // Sitting on the chart all the time, these competed with the damage they
-  // were meant to annotate. They appear only while their stat is selected --
-  // which is the moment you need them, since a parry's own bar is a stub.
-  document.querySelectorAll('#marks .mk').forEach(g => {
-    const e = DATA.events[+g.dataset.i];
-    const show = HILITE === g.dataset.mk && inWindow(e) && !EXCLUDED.has(foe(e));
-    g.setAttribute('opacity', show ? '1' : '0');
-  });
-
+// The rail beneath the chart: where the window sits within the whole fight,
+// and the way back out of it. The chart itself is now redrawn to fit the
+// window rather than shaded over, so this rail is the only thing left that
+// still has to describe the entire duration -- without it, a zoomed chart
+// gives you no sense of which part of the fight you are looking at.
+function windowBar(){
   const whole = T0 <= 0.05 && T1 >= DUR - 0.05;
   const sel = document.getElementById('sel');
   if (sel){
@@ -705,19 +684,29 @@ function bursts(){
   return out;
 }
 
+// Drawn from exactly the events the numbers above it are counting, so moving a
+// handle or setting someone aside redraws the chart instead of shading part of
+// it out. Both axes follow: the window fills the width, and the height is
+// scaled to the tallest bar still on screen. Shading kept the old scale, which
+// meant zooming into a quiet stretch left it flat against the axis and taking
+// the heaviest hitter out left everyone else squashed under a peak that was no
+// longer there.
 function timeline(){
-  const ev = DATA.events, svg = document.getElementById('svg');
+  const svg = document.getElementById('svg');
   const W = 1000, H = 200, mid = H/2, pad = 0;
-  const peak = Math.max(...ev.map(e => e.amount), 1);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-  const X = t => (t/DUR)*(W-2*pad)+pad;
+  const shown = counted();
+  const span = Math.max(T1 - T0, 0.001);
+  const X = t => ((t - T0)/span)*(W-2*pad)+pad;
+  const peak = Math.max(1, ...shown.map(e => e.amount));
   // A parry does no damage but still happened, so give it a visible stub.
   const L = a => Math.max(3, (a/peak)*(mid-pad-16));
 
-  // Running totals across the whole fight, drawn faintly behind the hits so
-  // you can see momentum without losing the individual swings.
-  const sorted = ev.slice().sort((a,b) => a.t - b.t);
+  // Running totals, drawn faintly behind the hits so you can see momentum
+  // without losing the individual swings. They restart at the left edge: the
+  // question the chart answers is what happened in the stretch on screen.
+  const sorted = shown.slice().sort((a,b) => a.t - b.t);
   let co = 0, ci = 0;
   const cum = sorted.map(e => {
     if (e.dir === 'out') co += e.amount; else ci += e.amount;
@@ -727,52 +716,74 @@ function timeline(){
   const CY = (v, up) => up ? mid - (v/cpeak)*(mid-pad) : mid + (v/cpeak)*(mid-pad);
   const path = (sel, up) => {
     if (!cum.length) return '';
-    let d = `M ${X(0)} ${mid}`;
+    let d = `M ${X(T0)} ${mid}`;
     cum.forEach(p => { d += ` L ${X(p.t).toFixed(1)} ${CY(sel(p), up).toFixed(1)}`; });
-    d += ` L ${X(DUR).toFixed(1)} ${CY(sel(cum[cum.length-1]), up).toFixed(1)}`;
+    d += ` L ${X(T1).toFixed(1)} ${CY(sel(cum[cum.length-1]), up).toFixed(1)}`;
     return d;
   };
 
+  // Walked over the full list rather than the filtered one so `data-i` stays
+  // an index into DATA.events, which is what the tooltip looks hits up by.
+  const on = e => inWindow(e) && !EXCLUDED.has(foe(e));
   let bars = '';
-  ev.forEach((e,i) => {
+  DATA.events.forEach((e, i) => {
+    if (!on(e)) return;
+    // Focusing one player, or a stat, dims the rest rather than dropping them:
+    // the point of focus is seeing one thread against the fight around it.
+    const lit = (!FOCUS || foe(e) === FOCUS) && duelMatch(e);
     const x = X(e.t), h = L(e.amount), up = e.dir === 'out';
     bars += `<rect x="${(x-2.5).toFixed(1)}" y="${(up ? mid-h : mid).toFixed(1)}"
       width="5" height="${h.toFixed(1)}" rx="1.5"
-      fill="var(--${up?'out':'in'})" opacity=".9" data-i="${i}"></rect>`;
+      fill="var(--${up?'out':'in'})" opacity="${lit ? '.9' : '.1'}" data-i="${i}"></rect>`;
   });
 
   // Anything that turns a swing aside does no damage, so its bar is a stub a
   // few pixels tall. A line the height of the chart is what makes it findable.
-  const marks = ev.map((e, i) => {
+  // Sitting there permanently they competed with the damage they annotate, so
+  // they appear only while their stat is selected -- the moment you want them.
+  const marks = DATA.events.map((e, i) => {
+    if (!on(e)) return '';
     const d = DUEL.find(x => isHit(e) && x.test(e));
     if (!d) return '';
     const x = X(e.t).toFixed(1);
-    return `<g class="mk" data-mk="${d.k}" data-i="${i}">
+    return `<g class="mk" data-mk="${d.k}" data-i="${i}" opacity="${HILITE === d.k ? '1' : '0'}">
       <line x1="${x}" y1="14" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
             stroke-dasharray="3 4" opacity=".55"></line>
       <circle cx="${x}" cy="8" r="4.2" fill="currentColor"></circle>
     </g>`;
   }).join('');
 
-  const bands = bursts().map(b => {
-    const x1 = X(b.from), x2 = Math.max(X(b.to), x1 + 6);
-    return `<g class="burst">
+  // A burst is a fact about the fight -- a hundred damage inside six seconds --
+  // so it is still found across the whole of it and merely clipped to what is
+  // on screen. Recomputing it inside the window would make one that straddles
+  // an edge disappear precisely when you zoomed in to look at it.
+  const bands = bursts()
+    .filter(b => b.to >= T0 && b.from <= T1)
+    .map(b => {
+      const x1 = X(Math.max(b.from, T0));
+      const x2 = Math.max(X(Math.min(b.to, T1)), x1 + 6);
+      return `<g class="burst">
       <title>Took ${b.dmg} in ${(b.to - b.from).toFixed(1)}s</title>
       <rect x="${x1.toFixed(1)}" y="${mid}" width="${(x2 - x1).toFixed(1)}" height="${mid}"
             fill="var(--in)" opacity=".12"></rect>
     </g>`;
-  }).join('');
+    }).join('');
 
   svg.innerHTML =
-    `<rect id="maskL" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
-     <rect id="maskR" x="0" y="0" width="0" height="${H}" fill="#0b0f16" opacity=".72"></rect>
-     <path d="${path(p=>p.o,true)}"  fill="none" stroke="var(--out)" stroke-width="1.5" opacity=".33"></path>
+    `<path d="${path(p=>p.o,true)}"  fill="none" stroke="var(--out)" stroke-width="1.5" opacity=".33"></path>
      <path d="${path(p=>p.i,false)}" fill="none" stroke="var(--in)"  stroke-width="1.5" opacity=".33"></path>
      <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--line)" stroke-width="1"></line>
      <g id="bursts">${bands}</g>
      <g id="hits">${bars}</g>
      <g id="marks">${marks}</g>`;
 
+  windowBar();
+}
+
+// Bound once, not per redraw: the chart is rebuilt on every drag, and
+// re-binding with it stacked a fresh pair of listeners on each one.
+function timelineTip(){
+  const svg = document.getElementById('svg');
   const tip = document.getElementById('tip'), tl = document.getElementById('tl');
   svg.addEventListener('mousemove', ev2 => {
     const r = ev2.target;
@@ -916,7 +927,7 @@ function roster(){
     const n = b.dataset.x;
     if (EXCLUDED.has(n)) EXCLUDED.delete(n);
     else { EXCLUDED.add(n); if (FOCUS === n) FOCUS = null; }
-    timeline(); render();
+    render();
   }));
 }
 
@@ -956,7 +967,7 @@ function setFocus(n){
   roster();
   detail();
   duel();
-  dimTimeline();
+  timeline();
 }
 
 function table(rows){
@@ -1031,7 +1042,7 @@ function setHilite(k){
   if (HILITE) FOCUS = null;
   const d = DUEL.find(x => x.k === HILITE);
   document.getElementById('focusnote').textContent = d ? `showing ${d.label.toLowerCase()}` : '';
-  roster(); detail(); duel(); dimTimeline();
+  roster(); detail(); duel(); timeline();
 }
 
 /* ---------------- how hits landed ---------------- */
