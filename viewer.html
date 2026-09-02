@@ -198,38 +198,71 @@
   .stat .sub{display:block;font-size:.74rem;color:var(--soft);margin-top:9px;}
 
   /* ---- timeline ---- */
+  .chartwrap{position:relative;}
+  /* A gutter for the scale, so the numbers sit beside the plot rather than on
+     top of it. The x labels and the event lane are inset to match. */
+  .plot{display:grid;grid-template-columns:42px 1fr;}
   .tl{position:relative;}
   .tl svg{display:block;width:100%;height:210px;overflow:visible;}
-  /* The three duel marks take the colour of the stat that selects them. */
-  .mk[data-mk="counter"]{color:var(--gold);}
-  .mk[data-mk="parried"]{color:var(--out);}
-  .mk[data-mk="gotparried"]{color:var(--in);}
-  /* Stacked shadows rather than one: a tight near-white rim, the gold just
-     outside it, then a wide soft halo. That layering is what reads as a lit
-     object instead of a flat disc with a blur behind it. */
-  .mk[data-mk="counter"] .dot{
-    filter:drop-shadow(0 0 2px var(--gold-core))
-           drop-shadow(0 0 7px var(--gold))
-           drop-shadow(0 0 16px var(--gold-halo));
+
+  .ylab{position:relative;}
+  .ylab span{
+    position:absolute;right:9px;transform:translateY(-50%);
+    font-size:.62rem;color:var(--soft);font-variant-numeric:tabular-nums;
+    white-space:nowrap;
   }
-  .mk[data-mk="counter"].on .dot{animation:emberpulse 2.2s ease-in-out infinite;}
+  .xaxis{position:relative;height:17px;margin:5px 0 0 42px;}
+  .xaxis span{
+    position:absolute;transform:translateX(-50%);
+    font-size:.66rem;color:var(--soft);font-variant-numeric:tabular-nums;
+  }
+  .xaxis span:first-child{transform:none;}
+  .xaxis span:last-child{transform:translateX(-100%);}
+
+  /* One lane, not two. The reference this follows splits its markers by team;
+     here every mark is about the same duel, so what separates them is which
+     kind of moment it was -- size for weight, colour for whose it was. */
+  .strip{
+    position:relative;margin:7px 0 0 42px;height:34px;border-radius:8px;
+    background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));
+    border:1px solid var(--line);
+  }
+  .striplab{
+    position:absolute;left:9px;top:50%;transform:translateY(-50%);
+    font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--soft);font-weight:600;pointer-events:none;
+  }
+  .dots{position:absolute;inset:0;}
+  .dots i{
+    position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
+    transform:translate(-50%,-50%);background:var(--tone);cursor:default;
+    box-shadow:0 0 7px -1px var(--tone);transition:opacity .12s;
+  }
+  /* A counter is the heaviest of the three, so it reads largest. */
+  .dots i.big{width:15px;height:15px;box-shadow:0 0 11px -1px var(--tone);}
+  .dots i.counter{--tone:var(--gold);}
+  .dots i.good{--tone:var(--out);}
+  .dots i.bad{--tone:var(--in);}
+  .dots i.off{opacity:.16;box-shadow:none;}
+  /* A counter keeps the lit-ember treatment it had on the chart: stacked
+     shadows rather than one -- a tight near-white rim, the gold just outside
+     it, then a wide halo. That layering reads as a lit object instead of a
+     flat disc with a blur behind it. */
+  .dots i.counter{
+    box-shadow:0 0 0 1px var(--gold-core) inset,
+               0 0 7px var(--gold), 0 0 16px var(--gold-halo);
+    animation:emberpulse 2.2s ease-in-out infinite;
+  }
   @keyframes emberpulse{
-    0%,100%{filter:drop-shadow(0 0 2px var(--gold-core))
-                   drop-shadow(0 0 6px var(--gold))
-                   drop-shadow(0 0 13px var(--gold-halo));}
-    50%    {filter:drop-shadow(0 0 3px var(--gold-core))
-                   drop-shadow(0 0 11px var(--gold))
-                   drop-shadow(0 0 22px var(--gold-halo));}
+    0%,100%{box-shadow:0 0 0 1px var(--gold-core) inset,
+                       0 0 6px var(--gold), 0 0 13px var(--gold-halo);}
+    50%    {box-shadow:0 0 0 1px var(--gold-core) inset,
+                       0 0 11px var(--gold), 0 0 22px var(--gold-halo);}
   }
   @media (prefers-reduced-motion:reduce){
-    .mk[data-mk="counter"].on .dot{animation:none;}
+    .dots i.counter{animation:none;}
   }
-  /* Only the dot, and only while its stat is selected, answers the pointer.
-     The dashed line runs the height of the chart and would swallow hovers
-     meant for the bars behind it, and a mark that is not on screen has
-     nothing to say. */
-  .mk{pointer-events:none;}
-  .mk.on .dot{pointer-events:all;}
+  .dots i.counter.off{box-shadow:none;animation:none;}
   .burst{pointer-events:auto;}
   .tip{
     position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;
@@ -485,8 +518,18 @@
         </aside>
         <div class="chart">
           <h2>How the fight went <span class="focusnote" id="focusnote"></span></h2>
-          <div class="tl" id="tl">
-            <svg id="svg" preserveAspectRatio="none"></svg>
+          <div class="chartwrap" id="chartwrap">
+            <div class="plot">
+              <div class="ylab" id="ylab"></div>
+              <div class="tl" id="tl">
+                <svg id="svg" preserveAspectRatio="none"></svg>
+              </div>
+            </div>
+            <div class="xaxis" id="xaxis"></div>
+            <div class="strip">
+              <span class="striplab">Counters &amp; parries</span>
+              <div class="dots" id="strip"></div>
+            </div>
             <div class="tip" id="tip"></div>
           </div>
           <div class="duelbar" id="duel"></div>
@@ -757,106 +800,122 @@ function bursts(){
 // meant zooming into a quiet stretch left it flat against the axis and taking
 // the heaviest hitter out left everyone else squashed under a peak that was no
 // longer there.
+// Gridlines want round numbers -- ones a person would have chosen.
+function niceStep(reach, lines){
+  const raw = Math.max(reach, 1) / Math.max(lines, 1);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / mag;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+}
+
+// The chart is a running difference: what you have dealt minus what you have
+// taken, from the left edge of the window. Zero sits in the middle, so being
+// above the line means you are ahead on the exchange and the depth below it is
+// how far behind you fell. A total alone cannot show that a fight was won
+// early and lost late; this can.
+//
+// Every vertex is one hit, which keeps the detail the old bars carried -- each
+// dot is hoverable and coloured by who landed it -- while the line itself
+// answers the question the bars could not.
 function timeline(){
   const svg = document.getElementById('svg');
-  const W = 1000, H = 200, mid = H/2, pad = 0;
+  const W = 1000, H = 200, mid = H / 2;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-  // The viewBox is stretched to the element rather than fitted to it, so one
-  // unit across is not one unit down and anything round drawn in these
-  // coordinates comes out an oval. At four pixels that did not show; at the
-  // size of its own hover target it would. Widening the x radius by the ratio
-  // between the two axes puts it back to a circle at any chart width.
+  // preserveAspectRatio is "none", so the viewBox is stretched to the element
+  // and a circle drawn in these units comes out an oval. Widening the x radius
+  // by the ratio between the axes puts it back to round at any width.
   const boxpx = svg.getBoundingClientRect();
   const skew = (boxpx.width && boxpx.height)
     ? (W / boxpx.width) * (boxpx.height / H) : 1;
-  const DOT = 11;                    // y-radius; the old invisible hit target
 
-  const shown = counted();
   const span = Math.max(T1 - T0, 0.001);
-  const X = t => ((t - T0)/span)*(W-2*pad)+pad;
-  const peak = Math.max(1, ...shown.map(e => e.amount));
-  // A parry does no damage but still happened, so give it a visible stub.
-  const L = a => Math.max(3, (a/peak)*(mid-pad-16));
+  const X = t => ((t - T0) / span) * W;
+  const idxOf = new Map(DATA.events.map((e, i) => [e, i]));
+  const shown = counted().filter(isHit).slice().sort((a, b) => a.t - b.t);
 
-  // Running totals, drawn faintly behind the hits so you can see momentum
-  // without losing the individual swings. They restart at the left edge: the
-  // question the chart answers is what happened in the stretch on screen.
-  const sorted = shown.slice().sort((a,b) => a.t - b.t);
-  let co = 0, ci = 0;
-  const cum = sorted.map(e => {
-    if (e.dir === 'out') co += e.amount; else ci += e.amount;
-    return {t:e.t, o:co, i:ci};
-  });
-  const cpeak = Math.max(co, ci, 1);
-  const CY = (v, up) => up ? mid - (v/cpeak)*(mid-pad) : mid + (v/cpeak)*(mid-pad);
-  const path = (sel, up) => {
-    if (!cum.length) return '';
-    let d = `M ${X(T0)} ${mid}`;
-    cum.forEach(p => { d += ` L ${X(p.t).toFixed(1)} ${CY(sel(p), up).toFixed(1)}`; });
-    d += ` L ${X(T1).toFixed(1)} ${CY(sel(cum[cum.length-1]), up).toFixed(1)}`;
-    return d;
-  };
+  let net = 0;
+  const pts = shown.map(e => ({ t: e.t, v: (net += e.dir === 'out' ? e.amount : -e.amount), e }));
 
-  // Walked over the full list rather than the filtered one so `data-i` stays
-  // an index into DATA.events, which is what the tooltip looks hits up by.
-  const on = e => inWindow(e) && !EXCLUDED.has(foe(e));
-  let bars = '';
-  DATA.events.forEach((e, i) => {
-    if (!on(e)) return;
-    // Focusing one player, or a stat, dims the rest rather than dropping them:
-    // the point of focus is seeing one thread against the fight around it.
-    const lit = (!FOCUS || foe(e) === FOCUS) && duelMatch(e);
-    const x = X(e.t), h = L(e.amount), up = e.dir === 'out';
-    bars += `<rect x="${(x-2.5).toFixed(1)}" y="${(up ? mid-h : mid).toFixed(1)}"
-      width="5" height="${h.toFixed(1)}" rx="1.5"
-      fill="var(--${up?'out':'in'})" opacity="${lit ? '.9' : '.1'}" data-i="${i}"></rect>`;
-  });
+  // A symmetric scale, so the middle of the chart is always zero and the two
+  // directions stay comparable by eye.
+  const reach = Math.max(1, ...pts.map(p => Math.abs(p.v)));
+  const step = niceStep(reach, 4);   // ~4 lines each side of zero
+  const top = Math.ceil(reach / step) * step;
+  const Y = v => mid - (v / top) * mid;
 
-  // Anything that turns a swing aside does no damage, so its bar is a stub a
-  // few pixels tall. A line the height of the chart is what makes it findable.
-  // Sitting there permanently they competed with the damage they annotate, so
-  // they appear only while their stat is selected -- the moment you want them.
-  const marks = DATA.events.map((e, i) => {
-    if (!on(e)) return '';
-    const d = DUEL.find(x => isHit(e) && x.test(e));
-    if (!d) return '';
-    const x = X(e.t).toFixed(1);
-    const show = HILITE === d.k;
-    // One shape now, drawn at the size the hover target used to be: what you
-    // can see and what you can hit are the same thing, which is the point.
-    const cy = DOT + 1;
-    return `<g class="mk${show ? ' on' : ''}" data-mk="${d.k}" data-i="${i}" opacity="${show ? '1' : '0'}">
-      <line x1="${x}" y1="${cy + DOT + 2}" x2="${x}" y2="${H}" stroke="currentColor" stroke-width="1"
-            stroke-dasharray="3 4" opacity=".55"></line>
-      <ellipse class="dot" cx="${x}" cy="${cy}" rx="${(DOT * skew).toFixed(1)}" ry="${DOT}"
-               fill="currentColor"></ellipse>
-    </g>`;
+  let grid = '';
+  for (let v = -top; v <= top + 1e-6; v += step){
+    const zero = Math.abs(v) < 1e-6, y = Y(v).toFixed(1);
+    grid += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="var(--line${zero ? '-2' : ''})"
+             stroke-width="1" opacity="${zero ? '1' : '.55'}"></line>`;
+  }
+
+  const line = pts.length
+    ? `M ${X(T0).toFixed(1)} ${mid} ` +
+      pts.map(p => `L ${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ')
+    : '';
+  const area = line ? `${line} L ${X(pts[pts.length - 1].t).toFixed(1)} ${mid} Z` : '';
+
+  // Clipped at the zero line rather than split into two paths: the fill and
+  // the stroke change colour exactly where they cross, with no seam.
+  const halves = `
+    <clipPath id="clipUp"><rect x="0" y="0" width="${W}" height="${mid}"></rect></clipPath>
+    <clipPath id="clipDn"><rect x="0" y="${mid}" width="${W}" height="${mid}"></rect></clipPath>`;
+
+  const dots = pts.map(p => {
+    const lit = (!FOCUS || foe(p.e) === FOCUS) && duelMatch(p.e);
+    return `<ellipse cx="${X(p.t).toFixed(1)}" cy="${Y(p.v).toFixed(1)}"
+      rx="${(3.1 * skew).toFixed(1)}" ry="3.1"
+      fill="var(--${p.e.dir === 'out' ? 'out' : 'in'})"
+      opacity="${lit ? '1' : '.12'}" data-i="${idxOf.get(p.e)}"></ellipse>`;
   }).join('');
 
-  // A burst is a fact about the fight -- a hundred damage inside six seconds --
-  // so it is still found across the whole of it and merely clipped to what is
-  // on screen. Recomputing it inside the window would make one that straddles
-  // an edge disappear precisely when you zoomed in to look at it.
+  // Still found across the whole fight and merely clipped to the view, so one
+  // straddling an edge does not vanish when you zoom in on it.
   const bands = bursts()
     .filter(b => b.to >= T0 && b.from <= T1)
     .map(b => {
       const x1 = X(Math.max(b.from, T0));
-      const x2 = Math.max(X(Math.min(b.to, T1)), x1 + 6);
-      return `<g class="burst">
-      <title>Took ${b.dmg} in ${(b.to - b.from).toFixed(1)}s</title>
-      <rect x="${x1.toFixed(1)}" y="${mid}" width="${(x2 - x1).toFixed(1)}" height="${mid}"
-            fill="var(--in)" opacity=".12"></rect>
-    </g>`;
+      const x2 = Math.max(X(Math.min(b.to, T1)), x1 + 5);
+      return `<rect x="${x1.toFixed(1)}" y="0" width="${(x2 - x1).toFixed(1)}" height="${H}"
+              fill="var(--in)" opacity=".07"></rect>`;
     }).join('');
 
-  svg.innerHTML =
-    `<path d="${path(p=>p.o,true)}"  fill="none" stroke="var(--out)" stroke-width="1.5" opacity=".33"></path>
-     <path d="${path(p=>p.i,false)}" fill="none" stroke="var(--in)"  stroke-width="1.5" opacity=".33"></path>
-     <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--line)" stroke-width="1"></line>
-     <g id="bursts">${bands}</g>
-     <g id="hits">${bars}</g>
-     <g id="marks">${marks}</g>`;
+  svg.innerHTML = `<defs>${halves}</defs>
+    <g>${bands}</g>
+    <g>${grid}</g>
+    <path d="${area}" fill="var(--out)" opacity=".17" clip-path="url(#clipUp)"></path>
+    <path d="${area}" fill="var(--in)"  opacity=".17" clip-path="url(#clipDn)"></path>
+    <path d="${line}" fill="none" stroke="var(--out)" stroke-width="1.7"
+          stroke-linejoin="round" clip-path="url(#clipUp)"></path>
+    <path d="${line}" fill="none" stroke="var(--in)"  stroke-width="1.7"
+          stroke-linejoin="round" clip-path="url(#clipDn)"></path>
+    <g id="hits">${dots}</g>`;
+
+  // The scale, mirrored: the number is how far from even, not a signed value.
+  let yl = '';
+  for (let v = top; v >= -top - 1e-6; v -= step){
+    yl += `<span style="top:${((Y(v) / H) * 100).toFixed(2)}%">${Math.round(Math.abs(v))}</span>`;
+  }
+  document.getElementById('ylab').innerHTML = yl;
+
+  let xl = '';
+  for (let i = 0; i <= 5; i++){
+    xl += `<span style="left:${i * 20}%">${fmt(T0 + span * i / 5)}</span>`;
+  }
+  document.getElementById('xaxis').innerHTML = xl;
+
+  document.getElementById('strip').innerHTML = DATA.events
+    .filter(e => inWindow(e) && !EXCLUDED.has(foe(e)) && isHit(e))
+    .map(e => {
+      const d = DUEL.find(x => x.test(e));
+      if (!d) return '';
+      return `<i class="${d.tone}${d.k === 'counter' ? ' big' : ''}${
+        !HILITE || HILITE === d.k ? '' : ' off'}"
+        style="left:${(((e.t - T0) / span) * 100).toFixed(2)}%"
+        data-i="${idxOf.get(e)}" data-mk="${d.k}"></i>`;
+    }).join('');
 
   windowBar();
 }
@@ -864,21 +923,23 @@ function timeline(){
 // Bound once, not per redraw: the chart is rebuilt on every drag, and
 // re-binding with it stacked a fresh pair of listeners on each one.
 function timelineTip(){
-  const svg = document.getElementById('svg');
-  const tip = document.getElementById('tip'), tl = document.getElementById('tl');
-  svg.addEventListener('mousemove', ev2 => {
+  const wrap = document.getElementById('chartwrap');
+  const tip  = document.getElementById('tip');
+
+  // One handler over the whole chart area: the vertices live in the SVG and
+  // the duel marks live in the lane below it, and both want the same tooltip.
+  wrap.addEventListener('mousemove', ev2 => {
     const t = ev2.target;
-    // A mark is a group, so the hover lands on the circle inside it.
-    const mk = t.closest ? t.closest('.mk') : null;
-    const bar = (t.tagName === 'rect' && t.dataset.i) ? t : null;
-    const node = mk || bar;
+    const mark = t.tagName === 'I' && t.dataset.i ? t : null;
+    const dot  = t.tagName === 'ellipse' && t.dataset.i ? t : null;
+    const node = mark || dot;
     if (!node) { tip.style.opacity = 0; return; }
     const e = DATA.events[+node.dataset.i];
 
-    if (mk){
-      // On its own the dot says only that something happened at this point in
-      // the fight. The time is what you need to go and find it in the clip.
-      const d = DUEL.find(x => x.k === mk.dataset.mk);
+    if (mark){
+      // The mark alone says only that something happened here. The time is
+      // what you need to go and find it in the recording.
+      const d = DUEL.find(x => x.k === mark.dataset.mk);
       tip.innerHTML = `${fmt(e.t)} &nbsp; ${esc(d ? d.tip : 'Marked')}
         <b>${esc(foe(e))}</b>` + (e.amount ? ` for <b>${e.amount}</b>` : '');
     } else {
@@ -888,13 +949,15 @@ function timelineTip(){
         (where.length ? ` · ${esc(where.join(', '))}` : '');
     }
 
-    const box = tl.getBoundingClientRect();
-    tip.classList.toggle('below', !!mk);
+    const box = wrap.getBoundingClientRect();
+    // A mark in the lane is near the bottom, so its tooltip hangs above; a
+    // vertex can sit anywhere, and above the cursor is out of its own way.
+    tip.classList.remove('below');
     tip.style.left = (ev2.clientX - box.left) + 'px';
-    tip.style.top  = (ev2.clientY - box.top + (mk ? 16 : -10)) + 'px';
+    tip.style.top  = (ev2.clientY - box.top - 10) + 'px';
     tip.style.opacity = 1;
   });
-  svg.addEventListener('mouseleave', () => tip.style.opacity = 0);
+  wrap.addEventListener('mouseleave', () => tip.style.opacity = 0);
 }
 
 
