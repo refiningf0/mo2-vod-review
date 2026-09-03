@@ -4,7 +4,7 @@ Drag a clip onto the executable and this runs the whole pipeline, writing the
 JSON and the HTML report next to the video itself rather than next to the
 program -- the report belongs with the footage it came from.
 
-    MO2FightLog.exe "some fight.mp4"
+    MO2VODReview.exe "some fight.mp4"
 """
 import multiprocessing
 import os
@@ -21,7 +21,7 @@ def app_dir():
     Deliberately not mo2log._here(): inside a PyInstaller build that resolves
     to the temporary directory the bundle unpacks itself into, which is gone
     the moment the run ends. What is wanted here is the folder holding
-    MO2FightLog.exe -- somewhere a person can open.
+    MO2VODReview.exe -- somewhere a person can open.
     """
     if getattr(sys, "frozen", False):
         return os.path.dirname(os.path.abspath(sys.executable))
@@ -59,7 +59,7 @@ def report_paths(video):
 def main():
     if len(sys.argv) < 2:
         print()
-        print("  Drag a video file onto MO2FightLog and let go.")
+        print("  Drag a video file onto MO2VODReview and let go.")
         print()
         return 1
 

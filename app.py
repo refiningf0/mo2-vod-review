@@ -1,4 +1,4 @@
-"""MO2 Fight Log as a window: open it, drop a clip in, watch it read.
+"""MO2 VOD Review as a window: open it, drop a clip in, watch it read.
 
 The console version is still there and unchanged -- drag a clip onto the exe
 and it works exactly as before. This is the same pipeline with a face on it,
@@ -246,6 +246,24 @@ class Api:
         if os.path.isdir(folder):
             os.startfile(folder)
         return None
+
+    def open_clip(self, path):
+        """Play the clip a report was read from, in whatever plays video here.
+
+        The report links to the file directly, which works when the report is
+        opened in a browser. In here it cannot: the page is handed to the view
+        as text rather than fetched from an address, so it has no location to
+        resolve a local file against and the link goes nowhere. Handing the
+        path to Windows opens it the way double-clicking it would -- in a
+        player, not in another copy of the page.
+        """
+        try:
+            if path and os.path.exists(path):
+                os.startfile(path)
+                return True
+        except Exception:                                    # noqa: BLE001
+            _log("could not open clip: %s" % traceback.format_exc())
+        return False
 
 
 def _release_child_drop_targets(control, tag=""):
@@ -566,7 +584,7 @@ def main():
     api = Api()
     webview.settings["ALLOW_FILE_URLS"] = True
     WINDOW = webview.create_window(
-        "MO2 Fight Log", shell, js_api=api,
+        "MO2 VOD Review", shell, js_api=api,
         width=1240, height=880, min_size=(900, 620),
         background_color="#0b0d11")
 

@@ -37,7 +37,7 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name='MO2FightLog',
+    name='MO2VODReview',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -51,10 +51,10 @@ coll = COLLECT(
     # the build makes the finished thing rather than something that has to
     # be copied and renamed first -- that hand step left a second, slowly
     # staler 234MB copy of the whole app sitting beside this one.
-    strip=False, upx=False, name='MO2-Fight-Log',
+    strip=False, upx=False, name='MO2-VOD-Review',
 )
 
 # The one file a person is meant to read, put where they will see it: beside
 # the exe, not in _internal with the DLLs, which is where a data entry above
 # would land it.
-shutil.copy2('HOW-TO-USE.txt', os.path.join(DISTPATH, 'MO2-Fight-Log'))
+shutil.copy2('HOW-TO-USE.txt', os.path.join(DISTPATH, 'MO2-VOD-Review'))

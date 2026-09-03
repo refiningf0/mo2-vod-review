@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title MO2 Fight Log
+title MO2 VOD Review
 
 cd /d "%~dp0"
 

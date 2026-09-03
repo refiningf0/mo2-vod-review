@@ -1,4 +1,4 @@
-MO2 Fight Log
+MO2 VOD Review
 =============
 
 Reads Mortal Online 2's combat log out of a gameplay recording and turns it
@@ -7,10 +7,10 @@ it only draws it on screen -- so the numbers are read off the video frames.
 
 HOW TO USE IT
 -------------
-Double-click MO2FightLog.exe. A window opens.
+Double-click MO2VODReview.exe. A window opens.
 
 Drag a clip onto the big box, or click it to pick one. You can also drag a
-clip straight onto MO2FightLog.exe and it will open and start reading.
+clip straight onto MO2VODReview.exe and it will open and start reading.
 
 It works for roughly a minute per 2 minutes of footage, showing what it is
 doing as it goes. When it finishes the report appears in the window.
@@ -18,7 +18,7 @@ doing as it goes. When it finishes the report appears in the window.
 Every fight you have read is listed underneath the box, newest first. Click
 one to open it again -- nothing is re-read, it opens instantly.
 
-Reports are saved in the "reports" folder next to MO2FightLog.exe, as a web
+Reports are saved in the "reports" folder next to MO2VODReview.exe, as a web
 page you can open, email or post anywhere. Your video is left alone.
 
 Nothing to install. Python and ffmpeg are already inside this folder.

@@ -23,7 +23,7 @@ python make_report.py fight.json          # -> fight.html
 python dump_lines.py "clip.mp4" 2
 
 # Build the distributable (needs ffmpeg/ffprobe at C:\ffmpeg)
-python -m PyInstaller --noconfirm --distpath dist --workpath build MO2FightLog.spec
+python -m PyInstaller --noconfirm --distpath dist --workpath build MO2VODReview.spec
 ```
 
 Useful flags on `mo2log.py`: `--crop x,y,w,h`, `--players Name1,Name2` (snaps every OCR spelling to real names), `--min-seen N`, `--keep-frames`.

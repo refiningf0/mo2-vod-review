@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MO2 Fight Log</title>
+<title>MO2 VOD Review</title>
 <style>
   /* Dark, gold-trimmed, numbers first -- a post-match screen rather than a
      spreadsheet. Everything is CSS: the report has to open with no network. */
@@ -503,7 +503,7 @@
 <body>
 <div class="wrap">
   <p class="eyebrow">Mortal Online 2 &middot; Fight Report</p>
-  <h1 id="title">MO2 Fight Log</h1>
+  <h1 id="title">MO2 VOD Review</h1>
   <div class="meta" id="meta"></div>
 
   <label class="drop" id="drop">
@@ -650,10 +650,22 @@ function start(){
     const href = encodeURI('file:///' + DATA.source_path.replace(/\\/g, '/'));
     // A new tab, so the report you were reading is still there behind it.
     title.innerHTML = `<a class="clip" href="${href}" target="_blank" rel="noopener"` +
-      ` title="Open the clip in a new tab">${esc(name)}` +
+      ` title="Play the clip">${esc(name)}` +
       `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" ` +
       `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
       `<path d="M5 4.6 19 12 5 19.4z"/></svg></a>`;
+    // Inside the app this page is handed to the view as text, so it has no
+    // address to resolve a local file against and the link above goes
+    // nowhere. Ask the app to play it instead; on its own in a browser the
+    // link works and this does nothing.
+    const link = title.querySelector('a.clip');
+    if (link && window.parent !== window) {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        window.parent.postMessage(
+          {mo2: 'play-clip', path: DATA.source_path}, '*');
+      });
+    }
   } else {
     title.textContent = name;
   }

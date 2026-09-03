@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MO2 Fight Log</title>
+<title>MO2 VOD Review</title>
 <style>
   /* Same dark, gold-trimmed world as the report it opens into, so the app and
      its output do not look like two different programs. */
@@ -115,7 +115,7 @@
 <header>
   <span class="mark">M2</span>
   <span>
-    <h1>MO2 Fight Log</h1>
+    <h1>MO2 VOD Review</h1>
     <span class="sub" id="sub">drop a clip to read it</span>
   </span>
   <span class="right">
@@ -259,6 +259,17 @@ document.addEventListener('drop', e => {
   if (e.dataTransfer.files && e.dataTransfer.files.length) {
     $('sub').textContent = 'that drop did not carry a location — choose the file instead';
     pick();
+  }
+});
+
+// The report sits in a frame and cannot reach Python itself, so it asks
+// through here when someone clicks its title to play the clip.
+window.addEventListener('message', e => {
+  const m = e.data;
+  if (m && m.mo2 === 'play-clip' && m.path && window.pywebview) {
+    window.pywebview.api.open_clip(m.path).then(ok => {
+      if (!ok) $('sub').textContent = 'that clip is not where the report says it is';
+    });
   }
 });
 
