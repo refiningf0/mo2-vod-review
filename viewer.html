@@ -1288,12 +1288,12 @@ function parts(){
     if (e.dir === 'in' && (e.flags || []).includes('Equipment')) add(armour, e);
   });
 
-  // An ability is a property of the swing, not of what it met. A hit tagged
+  // An ability is a property of the swing, not of what it met: a hit tagged
   // Armor Pierced that landed on equipment still used the ability and still
-  // did damage, and one used against you is still one used in this fight --
-  // so this counts every tagged swing either way, outcome regardless. A swing
-  // carrying two tags is still one swing, and counts once.
-  ev.forEach(e => {
+  // did damage, so the outcome is not consulted here. A swing carrying two
+  // tags is still one swing, and counts once. These are yours -- an ability
+  // used on you is not one you used.
+  mine.forEach(e => {
     if ((e.flags || []).some(f => ABILITY.includes(f))) add(ability, e);
   });
 
@@ -1325,8 +1325,8 @@ function parts(){
   const stopped = mine.length - clean.n;
   document.getElementById('defnote').textContent = stopped
     ? `${stopped} of ${mine.length} of your swings were stopped. Weapon ability `
-      + `hits are every swing in the fight tagged Impale, Armor Pierced or the `
-      + `like, whoever swung it.`
+      + `hits are your swings tagged Impale, Armor Pierced or the like, `
+      + `whatever they went on to hit.`
     : '';
 }
 </script>
