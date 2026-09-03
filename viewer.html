@@ -1288,15 +1288,20 @@ function parts(){
     if (e.dir === 'in' && (e.flags || []).includes('Equipment')) add(armour, e);
   });
 
+  // An ability is a property of the swing, not of what it met. A hit tagged
+  // Armor Pierced that landed on equipment still used the ability and still
+  // did damage, and one used against you is still one used in this fight --
+  // so this counts every tagged swing either way, outcome regardless. A swing
+  // carrying two tags is still one swing, and counts once.
+  ev.forEach(e => {
+    if ((e.flags || []).some(f => ABILITY.includes(f))) add(ability, e);
+  });
+
   mine.forEach(e => {
-    const flags = (e.flags || []).filter(f => !isNoise(f) || ABILITY.includes(f));
-    const stopped = flags.filter(isOutcome);
-    if (flags.some(f => f === 'Handle')) add(handle, e);
-    if (stopped.length) return;              // never landed
+    const flags = (e.flags || []).filter(f => !isNoise(f));
+    if (flags.includes('Handle')) add(handle, e);
+    if (flags.some(isOutcome)) return;       // never landed
     add(clean, e);
-    // A swing can carry two tags at once; it is still one swing with abilities
-    // on it, so it counts once here rather than once per tag.
-    if (flags.some(f => ABILITY.includes(f))) add(ability, e);
   });
 
   // "1 hit · 12" leaves you guessing what 12 is. Say it.
@@ -1320,7 +1325,8 @@ function parts(){
   const stopped = mine.length - clean.n;
   document.getElementById('defnote').textContent = stopped
     ? `${stopped} of ${mine.length} of your swings were stopped. Weapon ability `
-      + `hits are the clean ones that carried a tag like Impale or Armor Pierced.`
+      + `hits are every swing in the fight tagged Impale, Armor Pierced or the `
+      + `like, whoever swung it.`
     : '';
 }
 </script>
