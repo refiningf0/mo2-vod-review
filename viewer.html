@@ -421,6 +421,23 @@
   .part.handle{background:linear-gradient(180deg,rgba(251,146,60,.13),rgba(251,146,60,.04));
                border-color:rgba(251,146,60,.34);}
   .part.handle b{color:#fb923c;}
+  /* The three duel stats keep the colours they wear on the chart, so the same
+     thing is the same colour wherever you meet it. */
+  .part.counter{background:linear-gradient(180deg,rgba(255,199,74,.13),rgba(255,199,74,.04));
+                border-color:rgba(255,199,74,.34);}
+  .part.counter b{color:var(--gold);}
+  .part.good{background:linear-gradient(180deg,rgba(63,191,120,.12),rgba(63,191,120,.04));
+             border-color:rgba(63,191,120,.3);}
+  .part.good b{color:var(--out);}
+  .part.bad{background:linear-gradient(180deg,rgba(239,90,82,.13),rgba(239,90,82,.04));
+            border-color:rgba(239,90,82,.34);}
+  .part.bad b{color:var(--in);}
+  .part.ability{background:linear-gradient(180deg,rgba(167,139,250,.14),rgba(167,139,250,.04));
+                border-color:rgba(167,139,250,.36);}
+  .part.ability b{color:#a78bfa;}
+  .part.armor{background:linear-gradient(180deg,rgba(148,163,184,.12),rgba(148,163,184,.03));
+              border-color:rgba(148,163,184,.3);}
+  .part.armor b{color:#94a3b8;}
   .prow{display:flex;flex-wrap:wrap;gap:9px;flex-basis:100%;}
   .prow + .prow{margin-top:9px;}
 
@@ -557,7 +574,7 @@
     </div>
 
     <div class="card">
-      <h2>How your hits landed</h2>
+      <h2>How hits landed</h2>
       <div class="parts" id="parts"></div>
       <p class="note" id="defnote"></p>
     </div>
@@ -1250,55 +1267,60 @@ function setHilite(k){
 }
 
 /* ---------------- how hits landed ---------------- */
-function parts(){
-  const hits = counted().filter(e => e.dir === 'out' && isHit(e));
-  const tally = {};
-  let clean = {n: 0, dmg: 0};
+// Weapon procs and ability tags. Counter Reduced is left out -- it has a stat
+// of its own above -- and the outcomes below are not abilities, they are what
+// stopped the swing.
+const ABILITY = ['Impale', 'Armor Pierced', 'Spread Shot', 'Forceful Strike',
+                 'Off-Hand', 'Sting'];
 
-  hits.forEach(e => {
-    const flags = (e.flags || []).filter(f => !isNoise(f));
-    const how = flags.filter(isOutcome);
-    if (!how.length) {
-      // Landed on a body part and nothing got in the way.
-      clean.n++; clean.dmg += e.amount;
-      return;
-    }
-    // A swing can be stopped two ways at once ("0[Parry][Handle]"), so it is
-    // counted under each rather than forced into one.
-    how.forEach(f => {
-      tally[f] = tally[f] || {n: 0, dmg: 0};
-      tally[f].n++; tally[f].dmg += e.amount;
-    });
+function parts(){
+  const ev = counted().filter(isHit);
+  const mine = ev.filter(e => e.dir === 'out');
+  const zero = () => ({n: 0, dmg: 0});
+  const add = (b, e) => { b.n++; b.dmg += e.amount; };
+
+  const clean = zero(), ability = zero(), handle = zero(), armour = zero();
+  const duel = {counter: zero(), parried: zero(), gotparried: zero()};
+
+  ev.forEach(e => {
+    DUEL.forEach(d => { if (d.test(e)) add(duel[d.k], e); });
+    // Armour taking a hit for you is worth knowing on the way in, not out.
+    if (e.dir === 'in' && (e.flags || []).includes('Equipment')) add(armour, e);
   });
 
-  const TONE = {Parry: 'parry', Handle: 'handle'};
-  const LABEL = {Parry: 'Parried hits', Handle: 'Handle hits',
-                 Blocked: 'Blocked', Equipment: 'Equipment hits'};
-  // A parried swing always does nothing, so its damage is noise -- count only.
-  const COUNT_ONLY = ['Parry'];
-  // "1 hit \u00b7 12" leaves you guessing what 12 is. Say it.
+  mine.forEach(e => {
+    const flags = (e.flags || []).filter(f => !isNoise(f) || ABILITY.includes(f));
+    const stopped = flags.filter(isOutcome);
+    if (flags.some(f => f === 'Handle')) add(handle, e);
+    if (stopped.length) return;              // never landed
+    add(clean, e);
+    // A swing can carry two tags at once; it is still one swing with abilities
+    // on it, so it counts once here rather than once per tag.
+    if (flags.some(f => ABILITY.includes(f))) add(ability, e);
+  });
+
+  // "1 hit · 12" leaves you guessing what 12 is. Say it.
   const chip = (label, d, cls, countOnly) =>
     `<span class="part${cls ? ' ' + cls : ''}${d.n ? '' : ' zero'}">${esc(label)}<b>${
       d.n} hit${d.n === 1 ? '' : 's'}${
-      countOnly ? '' : ' \u00b7 ' + d.dmg + ' dmg'}</b></span>`;
-
-  const el = document.getElementById('parts');
+      countOnly ? '' : ' · ' + d.dmg + ' dmg'}</b></span>`;
 
   // Every category is shown whether or not it happened -- a row that vanishes
   // reads as the tool having missed something rather than as a zero.
-  const pick = f => chip(LABEL[f], tally[f] || {n: 0, dmg: 0},
-                         TONE[f] || '', COUNT_ONLY.includes(f));
+  // A parried swing always does nothing, so its damage is noise: count only.
+  document.getElementById('parts').innerHTML =
+    `<div class="prow">${chip('Counter reduced', duel.counter, 'counter')}${
+      chip('Parry received', duel.parried, 'good', true)}${
+      chip('Parry given', duel.gotparried, 'bad', true)}</div>` +
+    `<div class="prow">${chip('Clean hits', clean, 'main')}${
+      chip('Weapon ability hits', ability, 'ability')}${
+      chip('Handle hits', handle, 'handle')}</div>` +
+    `<div class="prow">${chip('Equipment hits received', armour, 'armor')}</div>`;
 
-  // Landed, stopped by them, stopped by your own grip -- then the odds and ends.
-  // Parries and counters have a panel of their own above; leaving them here
-  // as well would show the same figure twice on one screen.
-  el.innerHTML =
-    `<div class="prow">${chip('Clean hits', clean, 'main')}${pick('Handle')}</div>` +
-    `<div class="prow">${pick('Equipment')}${pick('Blocked')}</div>`;
-
-  const stopped = hits.length - clean.n;
+  const stopped = mine.length - clean.n;
   document.getElementById('defnote').textContent = stopped
-    ? `${stopped} of ${hits.length} swings were parried, blocked, or caught armour or the handle.`
+    ? `${stopped} of ${mine.length} of your swings were stopped. Weapon ability `
+      + `hits are the clean ones that carried a tag like Impale or Armor Pierced.`
     : '';
 }
 </script>
