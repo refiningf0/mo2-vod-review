@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MO2 Fight Log</title>
+<style>
+  /* Same dark, gold-trimmed world as the report it opens into, so the app and
+     its output do not look like two different programs. */
+  :root{
+    --bg:#0b0d11; --panel:#14171d; --panel-2:#1a1e26;
+    --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.14);
+    --ink:#e9edf3; --mid:#98a2b0; --soft:#687382;
+    --accent:#6d8cf5; --gold:#ffc74a; --out:#3fbf78; --in:#ef5a52;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(900px 420px at 50% -180px, rgba(109,140,245,.08), transparent 70%),
+      var(--bg);
+    color:var(--ink);
+    font:14px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .hide{display:none !important;}
+
+  /* ---- title bar ---- */
+  header{
+    flex:none;display:flex;align-items:center;gap:12px;
+    padding:14px 20px;border-bottom:1px solid var(--line);
+  }
+  header .mark{
+    width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(160deg,rgba(255,199,74,.9),rgba(255,199,74,.35));
+    color:#0b0d11;font-weight:800;font-size:.72rem;
+  }
+  header h1{font-size:.9rem;font-weight:700;margin:0;letter-spacing:.01em;}
+  header .sub{font-size:.72rem;color:var(--soft);}
+  header .right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+  .btn{
+    background:rgba(255,255,255,.05);border:1px solid var(--line-2);color:var(--ink);
+    font:inherit;font-size:.78rem;padding:6px 13px;border-radius:8px;cursor:pointer;
+    transition:background .12s,border-color .12s;
+  }
+  .btn:hover{background:rgba(255,255,255,.09);}
+  .btn.primary{
+    background:linear-gradient(180deg,#7e99f7,var(--accent));border-color:transparent;
+    color:#0b0d11;font-weight:650;
+  }
+  .btn:disabled{opacity:.45;cursor:default;}
+
+  main{flex:1;min-height:0;display:flex;flex-direction:column;}
+
+  /* ---- the landing view ---- */
+  #home{flex:1;min-height:0;display:flex;flex-direction:column;gap:18px;padding:22px;overflow:auto;}
+
+  h2{
+    font-size:.66rem;letter-spacing:.17em;text-transform:uppercase;color:var(--mid);
+    font-weight:600;margin:0 0 11px;display:flex;align-items:center;gap:10px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
+
+  .fights{display:flex;flex-direction:column;gap:6px;}
+  .fight{
+    display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:14px;
+    padding:10px 13px;border-radius:9px;cursor:pointer;text-align:left;
+    background:rgba(255,255,255,.026);border:1px solid var(--line);
+    color:var(--ink);font:inherit;transition:background .12s,border-color .12s;
+  }
+  .fight:hover{background:rgba(255,255,255,.06);border-color:var(--line-2);}
+  .fight .nm{font-weight:600;font-size:.87rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fight .meta{font-size:.72rem;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .fight .net{font-size:.84rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .fight .net.up{color:var(--out);} .fight .net.down{color:var(--in);}
+  .empty{color:var(--soft);font-size:.85rem;padding:14px 2px;}
+
+  /* ---- working ---- */
+  #working{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:40px 60px;}
+  #working .clip{font-size:1.02rem;font-weight:650;text-align:center;}
+  #working .stage{font-size:.82rem;color:var(--mid);text-align:center;min-height:1.4em;}
+  .bar{height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;}
+  .bar span{
+    display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,#7e99f7,var(--accent));transition:width .2s;
+  }
+  .bar.idle span{
+    width:32% !important;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    animation:sweep 1.25s ease-in-out infinite;
+  }
+  @keyframes sweep{0%{transform:translateX(-110%);}100%{transform:translateX(420%);}}
+  @media (prefers-reduced-motion:reduce){.bar.idle span{animation:none;width:100% !important;opacity:.5;}}
+  #working .note{font-size:.76rem;color:var(--soft);text-align:center;}
+
+  /* ---- the report, shown in place ---- */
+  #view{flex:1;min-height:0;display:flex;flex-direction:column;}
+  #view iframe{flex:1;width:100%;border:0;background:var(--bg);}
+
+  /* ---- something went wrong ---- */
+  #oops{padding:26px;display:flex;flex-direction:column;gap:12px;}
+  #oops .what{
+    background:rgba(239,90,82,.08);border:1px solid rgba(239,90,82,.35);
+    border-radius:11px;padding:15px 17px;font-size:.86rem;color:var(--ink);
+  }
+  #oops pre{
+    margin:0;max-height:230px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:13px;font:11.5px/1.5 "Cascadia Mono",Consolas,monospace;color:var(--mid);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">M2</span>
+  <span>
+    <h1>MO2 Fight Log</h1>
+    <span class="sub" id="sub">drop a clip to read it</span>
+  </span>
+  <span class="right">
+    <button class="btn hide" id="back">&larr; All fights</button>
+    <button class="btn hide" id="folder">Open folder</button>
+  </span>
+</header>
+
+<main>
+  <!-- landing -->
+  <section id="home">
+    <div>
+      <h2>Fights you have read</h2>
+      <div class="fights" id="fights"><div class="empty">Loading&hellip;</div></div>
+    </div>
+  </section>
+
+  <!-- working -->
+  <section id="working" class="hide">
+    <div class="clip" id="wclip"></div>
+    <div class="bar" id="wbar"><span></span></div>
+    <div class="stage" id="wstage"></div>
+    <div class="note">About 40 seconds per minute of footage.</div>
+  </section>
+
+  <!-- the report -->
+  <section id="view" class="hide">
+    <iframe id="frame" title="Fight report"></iframe>
+    <div class="empty hide" id="frameoops">That report would not open.</div>
+  </section>
+
+  <!-- failure -->
+  <section id="oops" class="hide">
+    <div class="what" id="oopswhat"></div>
+    <pre id="oopsdetail"></pre>
+    <div><button class="btn" id="oopsback">&larr; Back</button></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const show = which => {
+  ['home','working','view','oops'].forEach(s => $(s).classList.toggle('hide', s !== which));
+  $('back').classList.toggle('hide', which !== 'view');
+  $('folder').classList.toggle('hide', which === 'working');
+  // The drop area is drawn by Windows above this page, so it cannot know what
+  // the page is showing unless it is told.
+  if (window.pywebview) window.pywebview.api.show_strip(which === 'home');
+};
+
+// Python calls this as the run moves along.
+window.onProgress = (stage, done, total) => {
+  const words = {
+    probe:'Looking at the video', crop:'Finding the combat log',
+    extract:'Pulling out frames', preprocess:'Sharpening the text',
+    ocr:'Reading the text', parse:'Working out what happened', done:'Done',
+  };
+  $('wstage').textContent = words[stage] || stage;
+  const bar = $('wbar');
+  if (done && total) {
+    bar.classList.remove('idle');
+    bar.firstElementChild.style.width = (done / total * 100).toFixed(1) + '%';
+  } else {
+    // A stage that cannot count itself sweeps instead of pretending to know.
+    bar.classList.add('idle');
+  }
+};
+
+async function openReport(path){
+  // The report's HTML is fetched and written straight into the frame. Pointing
+  // it at a file:// address left the view blank with nothing to explain it.
+  const f = $('frame'), oops = $('frameoops');
+  oops.classList.add('hide');
+  f.classList.remove('hide');
+  show('view');
+  const html = await window.pywebview.api.read_report(path);
+  if (html) { f.srcdoc = html; }
+  else { f.classList.add('hide'); oops.classList.remove('hide'); }
+}
+
+window.onDone = report => { openReport(report); refresh(); };
+
+window.onFailed = (msg, detail) => {
+  $('oopswhat').textContent = msg;
+  $('oopsdetail').textContent = detail || '';
+  show('oops');
+};
+
+async function refresh(){
+  const rows = await window.pywebview.api.history();
+  const el = $('fights');
+  if (!rows.length){ el.innerHTML = '<div class="empty">Nothing read yet.</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <button class="fight" data-html="${r.html.replace(/"/g,'&quot;')}">
+      <span class="nm">${r.name}</span>
+      <span class="meta">${r.when} &middot; ${r.length} &middot; ${r.events} events</span>
+      <span class="net ${r.net >= 0 ? 'up' : 'down'}">${r.net >= 0 ? '+' : ''}${r.net}</span>
+    </button>`).join('');
+  el.querySelectorAll('.fight').forEach(b => b.addEventListener('click', () => {
+    openReport(b.dataset.html);
+  }));
+}
+
+async function pick(){
+  const path = await window.pywebview.api.choose();
+  if (path) begin(path);
+}
+
+// Called by Python whenever a run begins, however it began -- a click here or
+// a clip dropped on the window. One place switches the view, so a drop cannot
+// quietly start work while the page carries on showing the drop zone.
+window.onStarted = name => {
+  $('wclip').textContent = name;
+  $('wstage').textContent = 'Starting…';
+  $('wbar').classList.add('idle');
+  show('working');
+};
+
+function begin(path){ window.pywebview.api.start(path); }
+
+$('back').addEventListener('click', () => { show('home'); refresh(); });
+$('oopsback').addEventListener('click', () => { show('home'); refresh(); });
+$('folder').addEventListener('click', () => window.pywebview.api.open_folder());
+
+// The drop is handled below the page, by the window itself -- a page is never
+// told where a dropped file lives, and the clip has to be opened by path. So
+// the native side calls these: one to light the zone while a file is over the
+// window, one to say whether dropping is available at all.
+
+window.onDropReady = ok => {
+  $('sub').textContent = ok ? 'drop a clip above to read it'
+                            : 'click above to choose a clip';
+};
+
+// The page never sees the drop while that is working. This is for when it is
+// not: swallow it rather than letting the webview navigate to the file, and
+// ask for it instead.
+['dragenter','dragover','dragleave','drop'].forEach(n =>
+  document.addEventListener(n, e => e.preventDefault()));
+document.addEventListener('drop', e => {
+  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    $('sub').textContent = 'that drop did not carry a location — choose the file instead';
+    pick();
+  }
+});
+
+window.addEventListener('pywebviewready', refresh);
+</script>
+</body>
+</html>
