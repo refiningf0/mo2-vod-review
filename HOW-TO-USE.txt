@@ -12,7 +12,7 @@ Double-click MO2FightLog.exe. A window opens.
 Drag a clip onto the big box, or click it to pick one. You can also drag a
 clip straight onto MO2FightLog.exe and it will open and start reading.
 
-It works for roughly 90 seconds per 2 minutes of footage, showing what it is
+It works for roughly a minute per 2 minutes of footage, showing what it is
 doing as it goes. When it finishes the report appears in the window.
 
 Every fight you have read is listed underneath the box, newest first. Click

@@ -70,6 +70,8 @@ Each of these was arrived at by something breaking. Undoing one looks like a sim
 
 - **Do not widen the crop.** MO2 paints damage numbers over the world as well as into the log, and both read as combat lines. 100px more at the top invented hits; 3px too high clipped real ones. Sensitive in both directions.
 - **The 3× upscale before OCR is load-bearing.** Halving it removes 56% of the pixels from the two slowest stages and took a hand-checked clip from 100% to 79%.
+- **OCR gets its own worker count, and it is not the core count.** OCR spends its life waiting on the system's OCR service, so it keeps gaining well past where a CPU-bound stage stops: over 145 frames, 8 workers took 20s and 16 took 5s. Lowering the CPU-bound number for CPU reasons must not drag this one down with it.
+- **Extract is split across four ffmpeg processes**, each decoding its own stretch. A frame's time comes from its number, never its position in the list — a segment coming up one frame short would otherwise slide every later frame half a second early, and every mark on the report's timeline with it.
 - **The noise floor is relative, not fixed.** How many times a line gets read is a property of the clip. A fixed cutoff of 3 took a fast-scrolling fight from 139 damage to nothing.
 - **Numbers are settled across frames, not per line.** `551` is a well-formed reading; nothing in that line says it is wrong. A line is read 6–25 times, so a reading seen once that is another reading with one character wedged into it is that reading. Only a strict majority moves anything.
 - **Reject rather than guess.** A run of 4+ digits is a smear, not a hit — the reading is dropped and the neighbouring frames supply the value. Guessing put a 1200-damage hit in a report.
