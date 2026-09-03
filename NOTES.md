@@ -132,6 +132,33 @@ On the hand-checked clip the genuine rescue was seen 26 times and every false
 one 3 to 5, so there is a wide gap to cut in. This took the same clip from 92%
 to 100%.
 
+**And then the window that saved it started inventing hits.** The rule above
+asks whether the timestamped line was still on screen, and answered it with a
+fixed twelve seconds. How long a line stays up is not a property of the line
+though -- it is a property of how busy the fight is. Nothing new arrives to
+push it off and it just sits there. Measured across four fights, lines stayed
+on screen for 16, 24, 31, 40, even 78 seconds. Every reading past the twelfth
+second was then treated as a fresh sighting, and a run of them promoted into a
+second hit: on one clip 14 of 54 events were the same hit read twice, each
+landing exactly 12.5 seconds after its twin. The in-game log confirmed none of
+them happened.
+
+The window is gone. A line's readings are contiguous -- it appears, stays, and
+scrolls away, and never comes back -- so a stretch of identical readings is one
+line for as long as it keeps being read, however long that is. Two things split
+a stretch: distinct timestamps, and copies. Two readings of the same text from
+the same frame are two lines on screen together, which one line cannot be, and
+that is the witness for a line whose timestamp OCR lost -- without it three
+real hits went missing across the other clips. Removing 19 phantoms and adding
+nothing, across four fights.
+
+Two traps on the way, both caught by re-reading every changed event rather than
+the count. A timestamped reading is placed at the moment the hit *happened*, so
+all sixty of its readings share one instant: asking when a line was last *seen*
+has to use the frame, not the event time. And a gap in the reading is not proof
+the line went away -- on a clip whose log OCRs patchily, nineteen seconds passed
+with nothing parsing while the line sat there in plain sight.
+
 **Two clocks, six seconds apart.** Lines whose `[hh:mm:ss]` survives OCR carry
 wall time; the rest carry the frame they were read from. Reconciling them means
 knowing when the recording started, and every timestamped line offers an

@@ -536,27 +536,132 @@ def _one_glyph_over(digits, other):
     return any(digits[:i] + digits[i + 1:] == other for i in range(len(digits)))
 
 
-def dedupe(events, visible=12.0, rescue_min=8):
+def _read_at(e):
+    """When the frame this reading came from was taken.
+
+    Not the same as e["t"]: a reading that gave up its timestamp is placed at
+    the moment the hit happened, and every one of its dozens of readings then
+    shares that one instant. Asking when the line was *seen* needs the frame.
+    """
+    return e["ft"] if e.get("ft") is not None else e["t"]
+
+
+def _unbroken(rows, gap):
+    """Split readings wherever nobody read the line for a while.
+
+    `rows` are readings of one identical hit. A break longer than `gap` in
+    when they were *read* means the line left the screen, so what follows is a
+    new line that happens to say the same thing. Anything closer is the same
+    line still sitting there -- however long it sits.
+    """
+    rows = sorted(rows, key=_read_at)
+    runs, run = [], [rows[0]]
+    for e in rows[1:]:
+        if _read_at(e) - _read_at(run[-1]) <= gap:
+            run.append(e)
+        else:
+            runs.append(run)
+            run = [e]
+    runs.append(run)
+
+    # A gap only means the line went away if the readings either side are not
+    # demonstrably the same line. Two things say they are:
+    #
+    #   * the same timestamp on both sides -- OCR simply lost the line for a
+    #     while, which it does on a clip where the log reads patchily;
+    #   * nothing but a timestamp on the near side and none at all on the far
+    #     side. A timestamped line is on screen from its timestamp onward, and
+    #     readings after it saying exactly the same thing, carrying no claim of
+    #     their own, are it. A line that really was new would sooner or later
+    #     show its own timestamp, or be caught overlapping this one.
+    #
+    # Without the second, a 19-second hole where nothing parsed -- on a clip
+    # whose log OCRs badly -- turned one hit into two.
+    joined = [runs[0]]
+    for r in runs[1:]:
+        before = {round(e["t"]) for e in joined[-1] if e.get("exact")}
+        here = {round(e["t"]) for e in r if e.get("exact")}
+        adrift = (not here and before
+                  and _read_at(r[0]) - _read_at(joined[-1][-1]) <= gap * 2)
+        if (before & here) or adrift:
+            joined[-1].extend(r)
+        else:
+            joined.append(r)
+    return joined
+
+
+def _lines_in(run):
+    """How many log lines produced one unbroken stretch of readings, and when
+    each of them arrived.
+
+    Returns (event or None, time) per line: an event where a timestamp named
+    the line, and None where only the copies gave it away, for the caller to
+    build from the readings nearest it.
+    """
+    by_ts = {}
+    for e in run:
+        if e.get("exact"):
+            by_ts.setdefault(round(e["t"]), []).append(e)
+    built = []
+    for g in by_ts.values():
+        made = _merge(g)
+        built.append((made, made["t"]))
+    built.sort(key=lambda b: b[1])
+
+    # The most copies ever read from one frame is a floor on how many lines
+    # were up at once -- and so on how many lines this stretch holds.
+    per = Counter(e["ft"] for e in run if e.get("ft") is not None)
+    if not per:
+        return built
+    most = max(per.values())
+    if most <= len(built):
+        return built
+
+    # The kth line was there by the first frame that showed k copies.
+    frames = sorted(per)
+    for k in range(1, most + 1):
+        if len(built) >= most:
+            break
+        arrived = next((f for f in frames if per[f] >= k), None)
+        if arrived is not None and all(abs(arrived - t) > 2.0 for _, t in built):
+            built.append((None, arrived))
+    built.sort(key=lambda b: b[1])
+    return built
+
+
+def dedupe(events, visible=12.0):
     """Collapse the many readings of one log line into a single event.
 
     A line sits on screen for several seconds and is read from every frame in
-    that span, so the same hit arrives dozens of times. Two things separate a
-    genuine repeat from a re-read:
+    that span, so the same hit arrives dozens of times. Telling a genuine
+    repeat from a re-read rests on three things:
 
-      * The wall-clock timestamp, when OCR recovered it. That is definitive --
-        two readings sharing a timestamp are the same line, and two with
-        different timestamps are different lines however close together.
-      * Failing that, how far apart the readings are. Beyond the time a line
-        can stay visible, it must be a new hit.
+      * The readings of one line are contiguous. A line appears, stays, and
+        scrolls away; it never comes back. So a stretch of identical readings
+        is one line for as long as it keeps being read, and only a gap where
+        nobody read it at all can mean the line went and another like it came.
+      * Within a stretch, distinct wall-clock timestamps are distinct lines.
+      * And so are copies. Two readings of the same text from the *same frame*
+        are two lines on screen together, which one line cannot be. This is
+        the witness for a line whose timestamp OCR never recovered -- and OCR
+        loses them often.
 
-    Timestamps win where they exist. Within a group of identical hits, any
-    reading that lost its timestamp is treated as a re-read of a timestamped
-    one rather than a separate hit -- which is what it almost always is.
+    Readings that gave up neither are re-reads of whichever line they sit
+    nearest, which is what they almost always are.
+
+    This used to cut a stretch at a fixed distance from the line's first
+    sighting -- twelve seconds -- and promote whatever fell beyond into a
+    second hit. But how long a line stays up is not a property of the line, it
+    is a property of how busy the fight is: nothing arrives to push it off and
+    it sits there. Measured across four fights, lines stayed on screen for 16,
+    24, 31, 40, even 78 seconds. On one clip that fixed cut invented 14 hits
+    in a report of 54, and the in-game log confirmed they never happened.
     """
     def nm(e):
         return e["who"] if e["dir"] == "in" else e["target"]
 
     _settle_amounts(events, visible)
+
 
     groups = {}
     for e in sorted(events, key=lambda x: x["t"]):
@@ -564,61 +669,27 @@ def dedupe(events, visible=12.0, rescue_min=8):
 
     out = []
     for rows in groups.values():
-        timed = [e for e in rows if e.get("exact")]
-        if timed:
-            # One event per distinct timestamp, then the untimed readings are
-            # placed by whether the timed line was still on screen when each
-            # was taken.
-            by_ts = {}
-            for e in timed:
-                by_ts.setdefault(round(e["t"]), []).append(e)
+        for run in _unbroken(rows, visible):
+            built = _lines_in(run)
+            if not built:
+                out.append(_merge(run))
+                continue
 
-            built = []
-            for ts_rows in by_ts.values():
-                built.append((_merge(ts_rows), min(r["t"] for r in ts_rows)))
+            # Every reading belongs to the line it sits nearest in time.
+            buckets = [[] for _ in built]
+            for e in run:
+                i = min(range(len(built)), key=lambda j: abs(built[j][1] - e["t"]))
+                buckets[i].append(e)
 
-            # Attach each untimed reading to a timed hit that was still on
-            # screen when it was taken. Anything left over was read while no
-            # matching line was displayed, so it is a separate occurrence.
-            leftover = []
-            for u in (e for e in rows if not e.get("exact")):
-                home = next((m for m, t0 in built
-                             if t0 - 1.0 <= u["t"] <= t0 + visible), None)
-                if home is None:
-                    leftover.append(u)
-                else:
-                    home["seen"] += 1
-
-            for m, _ in built:
-                out.append(m)
-
-            # A line does not vanish the instant `visible` elapses, so a few
-            # stragglers always fall outside the window. Promoting those makes
-            # phantom hits: on a hand-checked fight the genuine rescued hit was
-            # read 26 times while every false one came from 3 to 5 readings.
-            # A hit that truly happened leaves a full line's worth of readings
-            # behind it, so hold rescues to that standard.
-            if leftover:
-                runs, run = [], [leftover[0]]
-                for e in leftover[1:]:
-                    if e["t"] - run[-1]["t"] <= visible:
-                        run.append(e)
-                    else:
-                        runs.append(run)
-                        run = [e]
-                runs.append(run)
-                for r in runs:
-                    if len(r) >= rescue_min:
-                        out.append(_merge(r))
-        else:
-            run = [rows[0]]
-            for e in rows[1:]:
-                if e["t"] - run[-1]["t"] <= visible:
-                    run.append(e)
-                else:
-                    out.append(_merge(run))
-                    run = [e]
-            out.append(_merge(run))
+            for (made, t0), mine in zip(built, buckets):
+                if made is None:
+                    # A line the copies found but no timestamp named. It is
+                    # placed where the copies first reached that many.
+                    made = _merge(mine or run)
+                    made["t"] = round(t0, 1)
+                elif mine:
+                    made["seen"] = len(mine)
+                out.append(made)
 
     out = [e for e in out if nm(e)]
 
