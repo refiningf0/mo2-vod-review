@@ -7,14 +7,19 @@ it only draws it on screen -- so the numbers are read off the video frames.
 
 HOW TO USE IT
 -------------
-Drag a video file onto MO2FightLog.exe and let go.
+Double-click MO2FightLog.exe. A window opens.
 
-A black window opens and works for roughly 90 seconds per 2 minutes of
-footage. When it finishes, a report opens in your browser.
+Drag a clip onto the big box, or click it to pick one. You can also drag a
+clip straight onto MO2FightLog.exe and it will open and start reading.
 
-Every report is saved in the `reports` folder inside this one, named after
-the video it came from, along with a .json of the raw data. Your video is
-left alone -- nothing is written next to it.
+It works for roughly 90 seconds per 2 minutes of footage, showing what it is
+doing as it goes. When it finishes the report appears in the window.
+
+Every fight you have read is listed underneath the box, newest first. Click
+one to open it again -- nothing is re-read, it opens instantly.
+
+Reports are saved in the "reports" folder next to MO2FightLog.exe, as a web
+page you can open, email or post anywhere. Your video is left alone.
 
 Nothing to install. Python and ffmpeg are already inside this folder.
 

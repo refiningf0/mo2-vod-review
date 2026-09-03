@@ -555,6 +555,23 @@ def main():
         api._js("window.onDropReady(%s)" % ("true" if ok else "false"))
 
     threading.Thread(target=on_ready, daemon=True).start()
+
+    # A clip dragged onto the .exe arrives as an argument. That gesture worked
+    # before this window existed and is what HOW-TO-USE.txt tells people to do,
+    # so it still starts a run -- the window opens and shows it happening.
+    clip = sys.argv[1] if len(sys.argv) > 1 else None
+    if clip and os.path.exists(clip):
+        def kick():
+            import time
+            for _ in range(60):
+                if WINDOW is not None and WINDOW.native is not None:
+                    break
+                time.sleep(0.1)
+            time.sleep(0.8)          # let the page finish loading first
+            api.start(os.path.abspath(clip))
+
+        threading.Thread(target=kick, daemon=True).start()
+
     webview.start()
 
 
