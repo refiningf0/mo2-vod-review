@@ -30,6 +30,14 @@ from PIL import Image
 from preprocess import prep
 from parse import parse_line, canonical_names, dedupe, is_weapon
 
+# Every child process below opens a console window of its own unless told not
+# to. Under the console build that went unnoticed -- children inherit the
+# window already on screen -- but the app has no console to lend, so a single
+# run flashed up ffmpeg's window and one per OCR worker: about ten black boxes
+# for the length of the run.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+
+
 def _here():
     """Where our own data files live.
 
@@ -57,7 +65,7 @@ def ocr(path):
         r = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", OCR_PS1, "-Path", path],
-            capture_output=True, timeout=60,
+            capture_output=True, timeout=60, creationflags=NO_WINDOW,
         )
     except Exception:
         return []
@@ -88,7 +96,7 @@ def ocr_folder(folder):
         r = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", OCR_BATCH, "-Dir", folder],
-            capture_output=True, timeout=3600,
+            capture_output=True, timeout=3600, creationflags=NO_WINDOW,
         )
     except Exception:
         return {}
@@ -117,7 +125,7 @@ def probe(video):
          "-show_entries", "stream=width,height",
          "-show_entries", "format=duration",
          "-of", "default=nw=1:nk=1", video],
-        capture_output=True, text=True,
+        capture_output=True, text=True, creationflags=NO_WINDOW,
     )
     vals = [v for v in r.stdout.split() if v.strip()]
     if len(vals) < 2:
@@ -150,7 +158,7 @@ def log_visible(video, crop, dur, samples=4, need=3):
                     ["-ss", str(round(step * (i + 1), 2)), "-i", video,
                      "-vf", "crop=%d:%d:%d:%d" % (cw, ch, x, y),
                      "-frames:v", "1", os.path.join(tmp, "p%02d.png" % i)],
-                    capture_output=True)
+                    capture_output=True, creationflags=NO_WINDOW)
                 if os.path.exists(os.path.join(tmp, "p%02d.png" % i)):
                     break
         for f in os.listdir(tmp):
@@ -191,14 +199,14 @@ def detect_crop(video, w, h, dur, samples=6, verbose=True):
                     [_tool("ffmpeg"), "-v", "error"] + pre +
                     ["-ss", str(round(step * (i + 1), 2)), "-i", video,
                      "-frames:v", "1", os.path.join(tmp, "s%02d.png" % i)],
-                    capture_output=True)
+                    capture_output=True, creationflags=NO_WINDOW)
                 if os.path.exists(os.path.join(tmp, "s%02d.png" % i)):
                     break
 
         r = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", FIND_PS1, "-Dir", tmp],
-            capture_output=True)
+            capture_output=True, creationflags=NO_WINDOW)
         boxes = []
         for line in r.stdout.decode("utf-8", errors="replace").splitlines():
             if line.startswith("##FILE") or "\t" not in line:
@@ -271,7 +279,8 @@ def extract(video, outdir, fps, crop):
     for pre in (["-hwaccel", "d3d11va"], []):
         r = subprocess.run([_tool("ffmpeg"), "-v", "error"] + pre +
                            ["-i", video, "-vf", vf, out],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True,
+                           creationflags=NO_WINDOW)
         frames = sorted(f for f in os.listdir(outdir) if f.endswith(".png"))
         if frames:
             return frames
@@ -313,7 +322,8 @@ def ocr_folder_parallel(folder, n):
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
              "-File", OCR_BATCH, "-Dir", folder,
              "-Skip", str(i * size), "-Take", str(size)],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            creationflags=NO_WINDOW))
 
     pages, cur = {}, None
     for p in procs:
