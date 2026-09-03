@@ -226,23 +226,39 @@
      were three things in two places. */
   .lanes{margin:7px 0 0 42px;display:flex;flex-direction:column;gap:5px;}
   .lane{
-    position:relative;display:grid;grid-template-columns:132px 1fr 30px;
-    align-items:center;gap:10px;width:100%;
-    height:28px;padding:0 9px;border-radius:7px;cursor:pointer;text-align:left;
+    position:relative;display:block;width:100%;
+    height:28px;padding:0;border-radius:7px;cursor:pointer;text-align:left;
     background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));
     border:1px solid var(--line);color:var(--mid);font:inherit;
     transition:background .12s,border-color .12s,color .12s;
   }
+  /* The track is the whole lane, not a column between the label and the count.
+     A mark is placed by its fraction of the window, so the thing it is a
+     fraction OF has to be the same width as the chart -- when it was a grid
+     column the marks sat inside a band 200px narrower and drifted right of
+     the moments they belonged to. Label and count float over the top. */
+  .lanetrack{position:absolute;inset:0;}
   .lanelab{
-    display:inline-flex;align-items:center;gap:6px;
+    position:absolute;left:0;top:0;bottom:0;z-index:2;pointer-events:none;
+    display:inline-flex;align-items:center;gap:6px;padding:0 22px 0 9px;
     font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
-    white-space:nowrap;overflow:hidden;
+    white-space:nowrap;border-radius:6px 0 0 6px;
+    /* Faded out rather than cut off, so a mark landing early in the window is
+       still visible behind the words instead of being hidden by them. */
+    background:linear-gradient(90deg,rgba(16,19,25,.94) 0%,
+                                     rgba(16,19,25,.94) 68%,
+                                     rgba(16,19,25,0) 100%);
   }
   .lanelab svg{width:13px;height:13px;flex:none;color:var(--tone);}
-  .lanetrack{position:relative;height:100%;}
   .lanen{
-    font-size:.78rem;font-weight:700;text-align:right;
+    position:absolute;right:0;top:0;bottom:0;z-index:2;pointer-events:none;
+    display:inline-flex;align-items:center;padding:0 9px 0 16px;
+    font-size:.78rem;font-weight:700;
     font-variant-numeric:tabular-nums;color:var(--tone);
+    border-radius:0 6px 6px 0;
+    background:linear-gradient(270deg,rgba(16,19,25,.94) 0%,
+                                      rgba(16,19,25,.94) 55%,
+                                      rgba(16,19,25,0) 100%);
   }
   .lane i{
     position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
