@@ -328,7 +328,19 @@ def ocr_folder_parallel(folder, n):
 
 
 def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
-        roster=None, min_seen=None, no_path=False):
+        roster=None, min_seen=None, no_path=False, progress=None):
+    """Read a clip and write its events to `out`.
+
+    `progress`, if given, is called as progress(stage, done, total) as the run
+    moves through it: stage is a short key, and done/total are None where a
+    stage cannot count itself. It exists so a window can show what is
+    happening; nothing about the reading depends on it.
+    """
+    def say(stage, done=None, total=None):
+        if progress:
+            progress(stage, done, total)
+
+    say("probe")
     w, h, dur = probe(video)
     if crop is None:
         # The default crop is tuned, and tuned beats derived here: MO2 also
@@ -345,6 +357,7 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
             elif verbose:
                 print("crop    no log found anywhere; trying the default anyway")
     fps_f = float(fps)
+    say("crop")
     if verbose:
         print("video   %dx%d  %.1fs" % (w, h, dur))
         print("crop    x=%d y=%d w=%d h=%d" % crop)
@@ -354,6 +367,7 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
     prepdir = os.path.join(tmp, "prep")
     os.makedirs(prepdir, exist_ok=True)
     try:
+        say("extract")
         frames = extract(video, tmp, fps, crop)
         if verbose:
             print("frames  %d extracted\n" % len(frames))
@@ -364,13 +378,22 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         at = {fn: i / fps_f for i, fn in enumerate(frames)}
         nw = _workers()
         with ProcessPoolExecutor(max_workers=nw) as pool:
-            done = list(pool.map(_prep_one, jobs, chunksize=4))
+            # Iterated rather than collected in one go, so the count can be
+            # reported as it climbs. Results still arrive in order.
+            done = []
+            for n, r in enumerate(pool.map(_prep_one, jobs, chunksize=4), 1):
+                done.append(r)
+                say("preprocess", n, len(jobs))
         ready = [(fn, at[fn]) for fn in done if fn]
 
         if verbose:
             print("reading %d frames across %d workers..." % (len(ready), nw))
+        # Each worker hands back its whole slice when it finishes, so this
+        # stage can say it is running but not how far along it is.
+        say("ocr", None, len(ready))
         pages = ocr_folder_parallel(prepdir, nw)
 
+        say("parse")
         raw_events, lines_seen = [], 0
         for fn, frame_t in ready:
             for raw in pages.get(fn, []):
@@ -448,6 +471,7 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         )
         with open(out, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1)
+        say("done", len(events), len(events))
 
         if verbose:
             hit = [e for e in events if e.get("kind", "hit") == "hit"]
