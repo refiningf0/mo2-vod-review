@@ -30,6 +30,17 @@ panel, so a clip recorded with the panel showing Guild or Party chat has
 nothing in it to read, however good the fight was. The floating damage text in
 the middle of the screen is not the same thing and is not used.
 
+IF WINDOWS BLOCKS IT
+--------------------
+Windows marks everything unzipped from a download as coming from the internet,
+which can stop the app starting. It clears that itself now, but if you ever see
+an error about Python.Runtime on the very first run: right-click the zip,
+choose Properties, tick Unblock, then extract it again.
+
+You may also see "Windows protected your PC" the first time. Click More info,
+then Run anyway -- that appears for any program that has not been paid to be
+signed.
+
 WINDOWS ONLY
 ------------
 The text recognition uses the engine built into Windows, which is why there is

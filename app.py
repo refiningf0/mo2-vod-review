@@ -18,7 +18,40 @@ import threading
 import traceback
 from urllib.parse import quote
 
-import webview
+
+def _unblock_bundle():
+    """Clear Windows' "this came from the internet" mark from our own files.
+
+    Everything extracted from a downloaded zip carries that mark, and .NET
+    refuses to load a marked assembly -- so pythonnet cannot start and the app
+    dies before its window appears, with "Failed to resolve
+    Python.Runtime.Loader.Initialize". Nothing about the files is wrong; they
+    are simply flagged as untrusted because they were downloaded.
+
+    Right-clicking the zip and choosing Unblock before extracting avoids it,
+    but nobody knows to do that, and the error gives no hint. These are our
+    own files and we are already running from them, so the mark is cleared
+    here instead.
+
+    This has to happen before webview is imported, because that is the import
+    that pulls in .NET.
+    """
+    if not getattr(sys, "frozen", False):
+        return
+    root = os.path.dirname(os.path.abspath(sys.executable))
+    for base, _, files in os.walk(root):
+        for name in files:
+            if name.lower().endswith((".dll", ".exe", ".pyd")):
+                try:
+                    # The mark is an alternate data stream on the file.
+                    os.remove(os.path.join(base, name) + ":Zone.Identifier")
+                except OSError:
+                    pass                      # not marked, or not ours to touch
+
+
+_unblock_bundle()
+
+import webview                                                # noqa: E402
 
 from mo2fightlog import app_dir, report_paths
 from mo2log import run
