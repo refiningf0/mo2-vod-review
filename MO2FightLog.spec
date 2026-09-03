@@ -2,6 +2,9 @@
 # Bundles the pipeline, the PowerShell OCR helper, the report template and
 # ffmpeg, so the machine running this needs no Python and no ffmpeg install.
 
+import os
+import shutil
+
 from PyInstaller.utils.hooks import collect_data_files
 
 datas = [
@@ -44,5 +47,14 @@ exe = EXE(
 )
 coll = COLLECT(
     exe, a.binaries, a.datas,
-    strip=False, upx=False, name='MO2FightLog',
+    # Named as it ships. This folder is zipped and sent as it stands, so
+    # the build makes the finished thing rather than something that has to
+    # be copied and renamed first -- that hand step left a second, slowly
+    # staler 234MB copy of the whole app sitting beside this one.
+    strip=False, upx=False, name='MO2-Fight-Log',
 )
+
+# The one file a person is meant to read, put where they will see it: beside
+# the exe, not in _internal with the DLLs, which is where a data entry above
+# would land it.
+shutil.copy2('HOW-TO-USE.txt', os.path.join(DISTPATH, 'MO2-Fight-Log'))
