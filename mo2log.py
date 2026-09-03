@@ -151,16 +151,33 @@ def log_visible(video, crop, dur, samples=4, need=3):
     tmp = tempfile.mkdtemp(prefix="mo2peek_")
     try:
         step = max(dur / (samples + 1), 1.0)
-        for i in range(samples):
-            for pre in (["-hwaccel", "d3d11va"], []):
-                subprocess.run(
-                    [_tool("ffmpeg"), "-v", "error"] + pre +
-                    ["-ss", str(round(step * (i + 1), 2)), "-i", video,
-                     "-vf", "crop=%d:%d:%d:%d" % (cw, ch, x, y),
-                     "-frames:v", "1", os.path.join(tmp, "p%02d.png" % i)],
-                    capture_output=True, creationflags=NO_WINDOW)
-                if os.path.exists(os.path.join(tmp, "p%02d.png" % i)):
-                    break
+        vf = "crop=%d:%d:%d:%d" % (cw, ch, x, y)
+
+        def grab(want, pre):
+            """Seek to each wanted moment at once rather than one after another.
+
+            These are independent single frames, and every run pays for them
+            before it starts: four seeks into a 4K clip, in turn, was several
+            seconds of the wait before anything appeared to be happening.
+            """
+            procs = [(i, subprocess.Popen(
+                [_tool("ffmpeg"), "-v", "error"] + pre +
+                ["-ss", str(round(step * (i + 1), 2)), "-i", video,
+                 "-vf", vf, "-frames:v", "1",
+                 os.path.join(tmp, "p%02d.png" % i)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=NO_WINDOW)) for i in want]
+            for _, proc in procs:
+                proc.wait()
+            return [i for i, _ in procs
+                    if not os.path.exists(os.path.join(tmp, "p%02d.png" % i))]
+
+        # Hardware decode for all of them, then the software path for any it
+        # could not manage -- the same fallback as before, one round instead
+        # of one per frame.
+        missing = grab(range(samples), ["-hwaccel", "d3d11va"])
+        if missing:
+            grab(missing, [])
         for f in os.listdir(tmp):
             if f.endswith(".png"):
                 try:
@@ -168,7 +185,7 @@ def log_visible(video, crop, dur, samples=4, need=3):
                     prep(Image.open(p)).save(p)
                 except Exception:
                     pass
-        pages = ocr_folder_parallel(tmp, 2)
+        pages = ocr_folder_parallel(tmp, samples)
         hits = sum(1 for lines in pages.values()
                    for ln in lines if LOGLINE.search(ln))
         return hits >= need
@@ -265,22 +282,66 @@ def default_crop(w, h):
     return (0, int(h * 0.70), int(w * 0.52), int(h * 0.26))
 
 
-def extract(video, outdir, fps, crop):
+# Segments to split the decode across. Measured on a 72s 4K AV1 clip: one
+# process 23.8s, two 13.6s, four 11.8s, eight 12.5s. Four is the knee -- past
+# it the decoder itself is the limit, not the number of processes asking.
+EXTRACT_SEGMENTS = 4
+
+
+def _frame_time(name, fps):
+    """When in the clip a frame was taken, from its number.
+
+    Read from the name rather than the frame's place in the list, because the
+    segments below each start counting from a number of their own. A segment
+    that comes up a frame short then shifts nothing after it -- where counting
+    positions would slide every later frame half a second early, and with it
+    every mark on the report's timeline.
+    """
+    return (int(os.path.splitext(name)[0][1:]) - 1) / fps
+
+
+def extract(video, outdir, fps, crop, dur=None, segments=EXTRACT_SEGMENTS):
     """Sample frames and crop to the log panel.
 
     AV1 clips (what most modern capture tools produce) make ffmpeg's software
     decoder fall over with "no sequence header". Hardware decoding handles them,
     so it is tried first and the software path is kept as a fallback.
+
+    One ffmpeg decoding the whole clip leaves most of the machine idle, so the
+    clip is cut into stretches and one is given to each of several. Each is
+    told the frame number to start counting from, so they write into a single
+    sequence whatever order they finish in. The stretches are whole numbers of
+    frames long, which keeps every frame at the time it would have had from a
+    single pass.
     """
     x, y, cw, ch = crop
     vf = "fps=%s,crop=%d:%d:%d:%d" % (fps, cw, ch, x, y)
     out = os.path.join(outdir, "f%06d.png")
 
+    # Splitting a short clip costs more in ffmpeg startups than it saves.
+    n = 1
+    if dur and segments > 1 and dur >= 20:
+        n = max(1, min(segments, int(dur // 10)))
+    per = int(-(-(dur * float(fps)) // n)) if n > 1 else 0
+
     for pre in (["-hwaccel", "d3d11va"], []):
-        r = subprocess.run([_tool("ffmpeg"), "-v", "error"] + pre +
+        if n == 1:
+            subprocess.run([_tool("ffmpeg"), "-v", "error"] + pre +
                            ["-i", video, "-vf", vf, out],
                            capture_output=True, text=True,
                            creationflags=NO_WINDOW)
+        else:
+            span = per / float(fps)
+            procs = [subprocess.Popen(
+                [_tool("ffmpeg"), "-v", "error"] + pre +
+                ["-ss", "%.3f" % (i * span), "-t", "%.3f" % span,
+                 "-i", video, "-vf", vf,
+                 "-start_number", str(i * per + 1), out],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                creationflags=NO_WINDOW) for i in range(n)]
+            for p in procs:
+                p.wait()
+
         frames = sorted(f for f in os.listdir(outdir) if f.endswith(".png"))
         if frames:
             return frames
@@ -301,7 +362,28 @@ def _prep_one(job):
 
 
 def _workers():
-    return max(1, min(os.cpu_count() or 2, 8))
+    """Cores to put on the CPU-bound stage.
+
+    Was capped at 8, which on a 16-core machine left half of it idle and the
+    preprocess stage taking 13.5s where 12 workers took 10.5s.
+    """
+    return max(1, min(os.cpu_count() or 2, 16))
+
+
+def _ocr_workers():
+    """How many OCR processes to run at once.
+
+    Measured over 145 frames on 16 cores, and the same in both directions so
+    it is not a warm cache: 4 workers 32s, 8 workers 20s, 12 workers 10s,
+    16 workers 5s. 24 was no better than 16.
+
+    It keeps gaining well past the point a CPU-bound stage would stop because
+    it is not CPU-bound -- each worker spends most of its life waiting on the
+    system's OCR service. That is also why this is its own number rather than
+    sharing one with the stage above: lowering that one for CPU reasons should
+    not quietly cost four times here.
+    """
+    return max(2, min(os.cpu_count() or 2, 16))
 
 
 def ocr_folder_parallel(folder, n):
@@ -378,14 +460,14 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
     os.makedirs(prepdir, exist_ok=True)
     try:
         say("extract")
-        frames = extract(video, tmp, fps, crop)
+        frames = extract(video, tmp, fps, crop, dur=dur)
         if verbose:
             print("frames  %d extracted\n" % len(frames))
 
         if verbose:
             print("preprocessing...")
         jobs = [(os.path.join(tmp, fn), os.path.join(prepdir, fn)) for fn in frames]
-        at = {fn: i / fps_f for i, fn in enumerate(frames)}
+        at = {fn: _frame_time(fn, fps_f) for fn in frames}
         nw = _workers()
         with ProcessPoolExecutor(max_workers=nw) as pool:
             # Iterated rather than collected in one go, so the count can be
@@ -397,11 +479,12 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         ready = [(fn, at[fn]) for fn in done if fn]
 
         if verbose:
-            print("reading %d frames across %d workers..." % (len(ready), nw))
+            print("reading %d frames across %d workers..."
+                  % (len(ready), _ocr_workers()))
         # Each worker hands back its whole slice when it finishes, so this
         # stage can say it is running but not how far along it is.
         say("ocr", None, len(ready))
-        pages = ocr_folder_parallel(prepdir, nw)
+        pages = ocr_folder_parallel(prepdir, _ocr_workers())
 
         say("parse")
         raw_events, lines_seen = [], 0
