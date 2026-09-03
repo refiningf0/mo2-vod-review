@@ -429,9 +429,19 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
     if not roster:
         kept = []
         for a in sorted(anchors, key=lambda n: -counts[n]):
-            if not difflib.get_close_matches(_norm(a), [_norm(k) for k in kept],
-                                             n=1, cutoff=0.86):
-                kept.append(a)
+            na = _norm(a)
+            if difflib.get_close_matches(na, [_norm(k) for k in kept],
+                                         n=1, cutoff=0.86):
+                continue
+            # An apostrophe OCR lost runs the owner's name into their weapon:
+            # "Moocifer's arrow" read as "Moociferts arrow" is not a second
+            # player, and it is far enough from "Moocifer" to survive the test
+            # above. Anything that begins with a name already established, and
+            # is seen a fraction as often, is that name.
+            if any(na.startswith(_norm(k)) and counts[a] * 3 <= counts[k]
+                   for k in kept):
+                continue
+            kept.append(a)
         anchors = kept
 
     norm_anchor = {_norm(a): a for a in anchors}
@@ -689,6 +699,9 @@ def dedupe(events, visible=12.0):
                     made["t"] = round(t0, 1)
                 elif mine:
                     made["seen"] = len(mine)
+                if mine:
+                    made["span"] = _span(mine)
+                    made["last"] = max(_read_at(r) for r in mine)
                 out.append(made)
 
     out = [e for e in out if nm(e)]
@@ -707,6 +720,20 @@ def dedupe(events, visible=12.0):
     return out
 
 
+def _span(run):
+    """How long the line was being read for, first sighting to last.
+
+    A companion to `seen`, and a better witness than it for a long line. How
+    many times a hit is read is not only how long it was up: the amount sits
+    in the middle of the line, and on a long one -- a name, a number, three
+    flags -- OCR drops the middle while still reading the ends. One real hit
+    here was on screen for fifteen seconds across thirty readings and gave up
+    its number in six of them, which read as noise beside lines whose number
+    came back every time. Nothing misread in a single frame has any span.
+    """
+    return round(max(_read_at(r) for r in run) - min(_read_at(r) for r in run), 1)
+
+
 def _merge(run):
     """One event from several readings: earliest time, majority name and flags."""
     e = dict(min(run, key=lambda r: r["t"]))
@@ -715,4 +742,6 @@ def _merge(run):
     e[field] = names.most_common(1)[0][0] if names else None
     e["flags"] = list(Counter(tuple(r["flags"]) for r in run).most_common(1)[0][0])
     e["seen"] = len(run)
+    e["span"] = _span(run)
+    e["last"] = max(_read_at(r) for r in run)
     return e

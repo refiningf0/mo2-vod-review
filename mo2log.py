@@ -540,8 +540,38 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         typical = seen_all[len(seen_all) // 2] if seen_all else 1
         floor = min_seen if min_seen else max(1, int(typical * 0.25))
 
-        thin = [e for e in events if e.get("seen", 1) < floor]
-        events = [e for e in events if e.get("seen", 1) >= floor]
+        # Counting readings asks the wrong question of two kinds of real hit.
+        #
+        # A long line -- a name, a number, three flags -- has its number in the
+        # middle, and OCR holds the ends of a line while dropping the middle.
+        # One real hit here sat on screen for fifteen seconds across thirty
+        # readings and gave up its number in six of them, which reads as noise
+        # beside lines whose number came back every time. The in-game log had
+        # it. How long it was there says what the count cannot.
+        #
+        # And a line still on screen when the recording stops was never going
+        # to be read many times. Two heals in the last three seconds of a clip
+        # were read seven times and twice, and both happened.
+        #
+        # Both need a timestamp before they are let back in. That is what
+        # separates them from a stray misreading, which has no span, no
+        # timestamp, and turns up in a single frame.
+        solid = [e for e in events if e.get("seen", 1) >= floor]
+        spans = sorted(e.get("span", 0) for e in solid)
+        lasted = spans[len(spans) // 2] * 0.25 if spans else 0
+        ends = max((t for _, t in ready), default=0)
+
+        def real(e):
+            if e.get("seen", 1) >= floor:
+                return True
+            if not e.get("exact"):
+                return False
+            if lasted > 0 and e.get("span", 0) >= lasted:
+                return True
+            return e.get("last", 0) >= ends and e.get("seen", 1) >= 2
+
+        thin = [e for e in events if not real(e)]
+        events = [e for e in events if real(e)]
         events.sort(key=lambda e: e["t"])
 
         # "Unknown" stands in for an attacker OCR could not recover. It is a
