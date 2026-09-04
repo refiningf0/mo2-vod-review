@@ -467,6 +467,22 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
             if difflib.get_close_matches(na, [_norm(k) for k in kept],
                                          n=1, cutoff=0.86):
                 continue
+            # A name that is the front of a name already established, and seen
+            # a small fraction as often, is that name with its end lost. OCR
+            # gives up on a long one and hands back "Father" for "Father of
+            # Bones"; left alone, the fragment becomes a player of its own, and
+            # the readings filed under it never join the real line -- so hits
+            # that happened before the recording started, and belong outside
+            # the report, come back inside it as three more that never did.
+            #
+            # This only ever folds a fragment into something longer, never the
+            # other way. Names that merely resemble each other stay apart:
+            # AkYabanFlayer and AkYabanSnatcher are different mobs, and so are
+            # AkYabanBloodletter and Bloodletter -- neither of which begins
+            # with the other.
+            if any(_norm(k).startswith(na) and counts[k] >= counts[a] * 5
+                   for k in kept):
+                continue
             kept.append(a)
         anchors = kept
 
