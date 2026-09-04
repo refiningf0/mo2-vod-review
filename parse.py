@@ -93,6 +93,17 @@ RE_OUT_ABIL = re.compile(r"\byour\s*" + SPELL + r"\s*" + HIT + SEP + NAME +
 RE_OUT = re.compile(r"\b" + YOU + r"\s+" + HIT + SEP + NAME + SEP + FOR + SEP + AMT_TOK, re.I)
 RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s+" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 RE_IN = re.compile(NAME + r"\s+" + HITS + r"?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
+# "Ith's Corrupt hit you", but with the possessive damaged. OCR loses the
+# apostrophe or the s after it -- "Ith'? Corrupt", "Itys Corrupt" -- and the
+# pattern above then reads the spell as the attacker, so a DoT called Corrupt
+# joined the roster as a player. Whatever sits between the name and the thing
+# that hit you is allowed to be wreckage; the name in front of it is still the
+# one who cast it. The log's own grammar keeps this from swallowing an
+# ordinary attack: something of yours *hit* you, while a person *hits*
+# you. Without that "bang hits you" parsed as someone called "ba".
+RE_IN_ABIL_LOOSE = re.compile(
+    NAME + r"[^A-Za-z0-9\n]{0,4}([A-Za-z][A-Za-z']{1,17})\s+" + HIT + r"(?![sz])" +
+    SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 
 
 def strip_channel(s):
@@ -382,6 +393,15 @@ def parse_line(raw, frame_t=None):
         return dict(t=t, ft=frame_t, exact=exact, kind="hit", dir="in", who=tidy_name(m2.group(1)),
                     target="You", amount=amt,
                     ability=m2.group(2).strip(), flags=flags, raw=raw)
+
+    m2 = RE_IN_ABIL_LOOSE.search(body)
+    if m2:
+        who = tidy_name(m2.group(1))
+        if not who.lower().startswith("you"):
+            return dict(t=t, ft=frame_t, exact=exact, kind="hit", dir="in",
+                        who="Unknown" if is_weapon(who) else who, target="You",
+                        amount=amt, ability=m2.group(2).strip(), flags=flags,
+                        raw=raw)
 
     m2 = RE_IN.search(body)
     if m2:
