@@ -146,6 +146,7 @@ FLAG_WORDS = (
     "Off-Hand",
 )
 FLAG_BY_NORM = {_norm(f): f for f in FLAG_WORDS}
+FLAG_SET = set(FLAG_WORDS)
 FLAG_KEYS = list(FLAG_BY_NORM)
 CHANNEL_KEYS = [_norm(c) for c in CHANNELS]
 
@@ -740,7 +741,17 @@ def _merge(run):
     field = "who" if e["dir"] == "in" else "target"
     names = Counter(r[field] for r in run if r.get(field))
     e[field] = names.most_common(1)[0][0] if names else None
-    e["flags"] = list(Counter(tuple(r["flags"]) for r in run).most_common(1)[0][0])
+    # Flags go to the majority, but only among readings that came back as
+    # flags the log actually uses. OCR can drop the middle of a run of them and
+    # weld the ends together -- "[Left Limb][Armor Pierced]" read as
+    # "[Left Pierced]" -- and that wreckage is stable enough to be read the
+    # same way in frame after frame. On one hit it won 12 readings to 3 and
+    # took a body part and an ability off a swing that had both. A word nothing
+    # recognises is kept when it is all there is, since it may be a tag this
+    # does not know yet, but it never outvotes one that is recognised.
+    tallies = [tuple(r["flags"]) for r in run]
+    known = [t for t in tallies if all(f in FLAG_SET for f in t)]
+    e["flags"] = list(Counter(known or tallies).most_common(1)[0][0])
     e["seen"] = len(run)
     e["span"] = _span(run)
     e["last"] = max(_read_at(r) for r in run)
