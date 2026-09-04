@@ -654,7 +654,12 @@ def _lines_in(run):
 
     # The most copies ever read from one frame is a floor on how many lines
     # were up at once -- and so on how many lines this stretch holds.
-    per = Counter(e["ft"] for e in run if e.get("ft") is not None)
+    #
+    # Counted within one reading of the frame, not across them. Every frame is
+    # read twice, through two image treatments, and the two disagree on the
+    # odd character; two readings of one line would otherwise look exactly like
+    # one line shown twice, and every hit would come out doubled.
+    per = Counter((e.get("pass", 0), e["ft"]) for e in run if e.get("ft") is not None)
     if not per:
         return built
     most = max(per.values())
@@ -662,11 +667,12 @@ def _lines_in(run):
         return built
 
     # The kth line was there by the first frame that showed k copies.
-    frames = sorted(per)
+    frames = sorted({f for _, f in per})
+    at_least = lambda f, k: any(n >= k for (_, ff), n in per.items() if ff == f)
     for k in range(1, most + 1):
         if len(built) >= most:
             break
-        arrived = next((f for f in frames if per[f] >= k), None)
+        arrived = next((f for f in frames if at_least(f, k)), None)
         if arrived is not None and all(abs(arrived - t) > 2.0 for _, t in built):
             built.append((None, arrived))
     built.sort(key=lambda b: b[1])

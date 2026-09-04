@@ -27,7 +27,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from PIL import Image
 
-from preprocess import prep
+from preprocess import prep, plain
 from parse import parse_line, canonical_names, dedupe, is_weapon
 
 # Every child process below opens a console window of its own unless told not
@@ -351,11 +351,20 @@ def extract(video, outdir, fps, crop, dur=None, segments=EXTRACT_SEGMENTS):
     raise RuntimeError("ffmpeg produced no frames -- check the file and codec")
 
 
+# Each frame is read twice, once through each treatment. They fail on
+# different lines -- pushing contrast rescues a line lost in a bright scene and
+# destroys one that was already legible -- and neither wins everywhere, so both
+# readings go to the consensus rather than one being chosen in advance. On a
+# fight checked against the in-game log this took the hits found from three of
+# five to five of five, and added nothing false.
+TREATMENTS = (prep, plain)
+
+
 def _prep_one(job):
     """Preprocess one frame. Top level so it can be sent to a worker process."""
-    src, dst = job
+    src, dst, which = job
     try:
-        prep(Image.open(src)).save(dst)
+        TREATMENTS[which](Image.open(src)).save(dst)
         return os.path.basename(src)
     except Exception:
         return None
@@ -456,8 +465,9 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         print("sample  %s fps" % fps)
 
     tmp = tempfile.mkdtemp(prefix="mo2frames_")
-    prepdir = os.path.join(tmp, "prep")
-    os.makedirs(prepdir, exist_ok=True)
+    prepdirs = [os.path.join(tmp, "prep%d" % i) for i in range(len(TREATMENTS))]
+    for d in prepdirs:
+        os.makedirs(d, exist_ok=True)
     try:
         say("extract")
         frames = extract(video, tmp, fps, crop, dur=dur)
@@ -466,7 +476,8 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
 
         if verbose:
             print("preprocessing...")
-        jobs = [(os.path.join(tmp, fn), os.path.join(prepdir, fn)) for fn in frames]
+        jobs = [(os.path.join(tmp, fn), os.path.join(prepdirs[i], fn), i)
+                for i in range(len(TREATMENTS)) for fn in frames]
         at = {fn: _frame_time(fn, fps_f) for fn in frames}
         nw = _workers()
         with ProcessPoolExecutor(max_workers=nw) as pool:
@@ -476,24 +487,38 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
             for n, r in enumerate(pool.map(_prep_one, jobs, chunksize=4), 1):
                 done.append(r)
                 say("preprocess", n, len(jobs))
-        ready = [(fn, at[fn]) for fn in done if fn]
+        # One entry per frame, whichever treatments managed it.
+        ok = {fn for fn in done if fn}
+        ready = [(fn, at[fn]) for fn in frames if fn in ok]
 
         if verbose:
             print("reading %d frames across %d workers..."
                   % (len(ready), _ocr_workers()))
         # Each worker hands back its whole slice when it finishes, so this
         # stage can say it is running but not how far along it is.
-        say("ocr", None, len(ready))
-        pages = ocr_folder_parallel(prepdir, _ocr_workers())
+        say("ocr", None, len(ready) * len(TREATMENTS))
+        reads = [ocr_folder_parallel(d, _ocr_workers()) for d in prepdirs]
 
         say("parse")
         raw_events, lines_seen = [], 0
         for fn, frame_t in ready:
-            for raw in pages.get(fn, []):
-                lines_seen += 1
-                ev = parse_line(raw, frame_t)
-                if ev:
-                    raw_events.append(ev)
+            # A line both treatments read the same way is one sighting, not
+            # two. One they read differently is two readings of one line, and
+            # which treatment each came from is carried along -- otherwise two
+            # readings of the same line look like two copies of it on screen,
+            # which is how the dedupe tells overlapping lines apart.
+            said = set()
+            for which, pages in enumerate(reads):
+                for raw in pages.get(fn, []):
+                    key = " ".join(raw.split())
+                    if key in said:
+                        continue
+                    said.add(key)
+                    lines_seen += 1
+                    ev = parse_line(raw, frame_t)
+                    if ev:
+                        ev["pass"] = which
+                        raw_events.append(ev)
 
         anchors = canonical_names(raw_events, roster=roster)
 

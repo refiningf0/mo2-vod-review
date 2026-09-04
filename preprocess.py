@@ -39,6 +39,19 @@ def _bright_recipe(img, scale, radius, delta):
     return Image.fromarray(np.where(grey > local + delta, 0, 255).astype(np.uint8), "L")
 
 
+def plain(img, scale=3):
+    """Bigger, and nothing else.
+
+    The treatments above help a great deal on some frames and take text away on
+    others: pushing contrast on an already-legible line crushes the
+    anti-aliasing that tells an "8" from a "B", and a line that reads perfectly
+    from the raw crop can come back with its whole tail missing. Neither
+    treatment wins everywhere, so the pipeline reads every frame both ways and
+    lets the cross-frame consensus sort it out.
+    """
+    return _upscale(img if img.mode == "RGB" else img.convert("RGB"), scale)
+
+
 def prep(img, scale=3, contrast=2.0, radius=9, delta=18, force=None):
     """Return an image ready for OCR.
 
