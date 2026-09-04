@@ -37,7 +37,11 @@
   }
   header h1{font-size:.9rem;font-weight:700;margin:0;letter-spacing:.01em;}
   header .sub{font-size:.72rem;color:var(--soft);}
-  header .right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+  header .right{display:flex;gap:8px;align-items:center;}
+  /* Left empty on purpose: the drop bar is drawn by Windows and put here,
+     because a page cannot be told where a dropped file came from. It stretches
+     so the bar has the header's full height to fill, not just a line of it. */
+  header .gap{flex:1;min-width:80px;align-self:stretch;}
   .btn{
     background:rgba(255,255,255,.05);border:1px solid var(--line-2);color:var(--ink);
     font:inherit;font-size:.78rem;padding:6px 13px;border-radius:8px;cursor:pointer;
@@ -62,13 +66,29 @@
   h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent);}
 
   .fights{display:flex;flex-direction:column;gap:6px;}
-  .fight{
-    display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:14px;
-    padding:10px 13px;border-radius:9px;cursor:pointer;text-align:left;
-    background:rgba(255,255,255,.026);border:1px solid var(--line);
-    color:var(--ink);font:inherit;transition:background .12s,border-color .12s;
+  .row{
+    display:flex;align-items:stretch;gap:6px;
+    border-radius:9px;background:rgba(255,255,255,.026);
+    border:1px solid var(--line);transition:background .12s,border-color .12s;
   }
-  .fight:hover{background:rgba(255,255,255,.06);border-color:var(--line-2);}
+  .row:hover{background:rgba(255,255,255,.06);border-color:var(--line-2);}
+  .fight{
+    flex:1;min-width:0;
+    display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:14px;
+    padding:10px 13px;cursor:pointer;text-align:left;
+    background:none;border:0;color:var(--ink);font:inherit;
+  }
+  /* Kept quiet until the row is under the cursor: throwing a report away is
+     not what anyone came to this list to do. */
+  .del{
+    flex:none;width:38px;border:0;background:none;cursor:pointer;
+    color:var(--soft);font:inherit;font-size:1rem;line-height:1;
+    border-radius:0 8px 8px 0;opacity:0;transition:opacity .12s,color .12s,background .12s;
+  }
+  .row:hover .del{opacity:1;}
+  .del:hover{color:var(--in);background:rgba(239,90,82,.12);}
+  .del:focus-visible{opacity:1;outline:2px solid var(--in);outline-offset:-2px;}
+  .del.armed{opacity:1;color:var(--in);background:rgba(239,90,82,.18);width:auto;padding:0 11px;font-size:.74rem;}
   .fight .nm{font-weight:600;font-size:.87rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .fight .meta{font-size:.72rem;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap;}
   .fight .net{font-size:.84rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
@@ -118,9 +138,9 @@
     <h1>MO2 VOD Review</h1>
     <span class="sub" id="sub">drop a clip to read it</span>
   </span>
+  <span class="gap" id="gap"></span>
   <span class="right">
     <button class="btn hide" id="back">&larr; All fights</button>
-    <button class="btn hide" id="folder">Open folder</button>
   </span>
 </header>
 
@@ -160,11 +180,43 @@ const $ = id => document.getElementById(id);
 const show = which => {
   ['home','working','view','oops'].forEach(s => $(s).classList.toggle('hide', s !== which));
   $('back').classList.toggle('hide', which !== 'view');
-  $('folder').classList.toggle('hide', which === 'working');
   // The drop area is drawn by Windows above this page, so it cannot know what
   // the page is showing unless it is told.
-  if (window.pywebview) window.pywebview.api.show_strip(which === 'home');
+  // A slim bar stays over the report, so another clip can be dropped without
+  // going back to the list first.
+  if (window.pywebview) window.pywebview.api.show_strip(
+    which === 'home' ? 'full' : which === 'working' ? 'hidden' : 'slim');
+  if (which !== 'home' && which !== 'working') placeStrip();
 };
+
+// Where the drop bar goes when a report is open: the empty middle of this
+// header. Windows draws that bar, not this page, and the two do not share a
+// coordinate system -- so the gap is measured here and sent across along with
+// how wide this page believes it is, which is what makes the two comparable.
+function placeStrip(){
+  if (!window.pywebview) return;
+  const gap = document.getElementById('gap');
+  const hdr = document.querySelector('header');
+  if (!gap || !hdr) return;
+  const r = gap.getBoundingClientRect();
+  const hb = hdr.getBoundingClientRect();
+  if (r.width < 40) return;
+  // Across, it stops short of the title and the buttons. Down, it takes the
+  // header's whole height rather than the room left inside its padding, so it
+  // meets the top of the window and the line under the header.
+  window.pywebview.api.strip_at(
+    Math.round(r.left + 10), Math.round(hb.top),
+    Math.round(r.width - 20), Math.round(hb.height),
+    window.innerWidth);
+}
+// The gap moves with the window, so it is measured again when that happens.
+let placeSoon;
+window.addEventListener('resize', () => {
+  clearTimeout(placeSoon);
+  placeSoon = setTimeout(() => {
+    if (!$('view').classList.contains('hide') || !$('oops').classList.contains('hide')) placeStrip();
+  }, 60);
+});
 
 // Python calls this as the run moves along.
 window.onProgress = (stage, done, total) => {
@@ -204,18 +256,48 @@ window.onFailed = (msg, detail) => {
   show('oops');
 };
 
+function disarm(){
+  document.querySelectorAll('.del.armed').forEach(x => {
+    x.classList.remove('armed');
+    x.innerHTML = '&times;';
+  });
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.del')) disarm();
+});
+
 async function refresh(){
   const rows = await window.pywebview.api.history();
   const el = $('fights');
   if (!rows.length){ el.innerHTML = '<div class="empty">Nothing read yet.</div>'; return; }
-  el.innerHTML = rows.map(r => `
-    <button class="fight" data-html="${r.html.replace(/"/g,'&quot;')}">
-      <span class="nm">${r.name}</span>
-      <span class="meta">${r.when} &middot; ${r.length} &middot; ${r.events} events</span>
-      <span class="net ${r.net >= 0 ? 'up' : 'down'}">${r.net >= 0 ? '+' : ''}${r.net}</span>
-    </button>`).join('');
+  el.innerHTML = rows.map(r => {
+    const p = r.html.replace(/"/g, '&quot;');
+    return `<div class="row">
+      <button class="fight" data-html="${p}">
+        <span class="nm">${r.name}</span>
+        <span class="meta">${r.when} &middot; ${r.length} &middot; ${r.events} events</span>
+        <span class="net ${r.net >= 0 ? 'up' : 'down'}">${r.net >= 0 ? '+' : ''}${r.net}</span>
+      </button>
+      <button class="del" data-html="${p}" title="Delete this report"
+              aria-label="Delete ${r.name}">&times;</button>
+    </div>`;
+  }).join('');
   el.querySelectorAll('.fight').forEach(b => b.addEventListener('click', () => {
     openReport(b.dataset.html);
+  }));
+  // Two clicks, because there is no undo: the first says what is about to
+  // happen, and clicking anywhere else takes it back.
+  el.querySelectorAll('.del').forEach(b => b.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (!b.classList.contains('armed')) {
+      disarm();
+      b.classList.add('armed');
+      b.textContent = 'Delete?';
+      return;
+    }
+    b.textContent = '…';
+    await window.pywebview.api.delete_report(b.dataset.html);
+    refresh();
   }));
 }
 
@@ -238,7 +320,6 @@ function begin(path){ window.pywebview.api.start(path); }
 
 $('back').addEventListener('click', () => { show('home'); refresh(); });
 $('oopsback').addEventListener('click', () => { show('home'); refresh(); });
-$('folder').addEventListener('click', () => window.pywebview.api.open_folder());
 
 // The drop is handled below the page, by the window itself -- a page is never
 // told where a dropped file lives, and the clip has to be opened by path. So

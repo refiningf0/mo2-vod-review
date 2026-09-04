@@ -103,6 +103,8 @@
   .chart{display:flex;flex-direction:column;}
   /* Everything above is measured; this pushes the controls to the bottom edge. */
   .chart .rangewrap{margin-top:auto;}
+  /* A column, so the list below can be told to take whatever is left. */
+  .picks{display:flex;flex-direction:column;min-height:0;}
   .picks h2{margin-bottom:12px;}
   .chart h2{margin-bottom:14px;}
   .focusnote{
@@ -114,7 +116,15 @@
   /* Everyone, not a shortlist -- the chart is driven from here, so leaving
      someone out would put them out of reach. */
   .rosterlist{
-    max-height:322px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;
+    /* Runs to the bottom of the card rather than stopping at a fixed height
+       and leaving the roster stranded halfway up beside a taller chart. It
+       still scrolls -- it just has more room before it needs to. */
+    /* Basis zero, not auto: from auto its base size is the whole roster, so a
+       fight with two dozen players stretched the card to their full height
+       instead of scrolling inside it. From zero the chart sets how tall the
+       row is and this takes whatever that leaves. */
+    flex:1 1 0;min-height:190px;
+    overflow-y:auto;overscroll-behavior:contain;padding-right:4px;
     scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent;
   }
   .rosterlist::-webkit-scrollbar{width:8px;}
@@ -227,7 +237,7 @@
   .lanes{margin:7px 0 0 42px;display:flex;flex-direction:column;gap:5px;}
   .lane{
     position:relative;display:block;width:100%;
-    height:28px;padding:0;border-radius:7px;cursor:pointer;text-align:left;
+    height:38px;padding:0;border-radius:7px;cursor:pointer;text-align:left;
     background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));
     border:1px solid var(--line);color:var(--mid);font:inherit;
     transition:background .12s,border-color .12s,color .12s;
@@ -238,35 +248,41 @@
      column the marks sat inside a band 200px narrower and drifted right of
      the moments they belonged to. Label and count float over the top. */
   .lanetrack{position:absolute;inset:0;}
+  /* The words keep the top of the row and the marks keep the bottom, so the
+     two can never land on each other. Putting the marks above the words
+     instead only turned a mark hidden behind a letter into a mark sitting on
+     one. The track still spans the whole lane, so a mark is still placed
+     against the same width as the chart above it. */
   .lanelab{
-    position:absolute;left:0;top:0;bottom:0;z-index:2;pointer-events:none;
-    display:inline-flex;align-items:center;gap:6px;padding:0 22px 0 9px;
+    position:absolute;left:0;top:0;height:19px;z-index:2;pointer-events:none;
+    display:inline-flex;align-items:center;gap:6px;padding:0 10px 0 9px;
     font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
-    white-space:nowrap;border-radius:6px 0 0 6px;
-    /* Faded out rather than cut off, so a mark landing early in the window is
-       still visible behind the words instead of being hidden by them. */
-    background:linear-gradient(90deg,rgba(16,19,25,.94) 0%,
-                                     rgba(16,19,25,.94) 68%,
-                                     rgba(16,19,25,0) 100%);
+    white-space:nowrap;
   }
   .lanelab svg{width:13px;height:13px;flex:none;color:var(--tone);}
   .lanen{
-    position:absolute;right:0;top:0;bottom:0;z-index:2;pointer-events:none;
-    display:inline-flex;align-items:center;padding:0 9px 0 16px;
+    position:absolute;right:0;top:0;height:19px;z-index:2;pointer-events:none;
+    display:inline-flex;align-items:center;padding:0 9px 0 10px;
     font-size:.78rem;font-weight:700;
     font-variant-numeric:tabular-nums;color:var(--tone);
-    border-radius:0 6px 6px 0;
-    background:linear-gradient(270deg,rgba(16,19,25,.94) 0%,
-                                      rgba(16,19,25,.94) 55%,
-                                      rgba(16,19,25,0) 100%);
+  }
+  /* Above the label and the count, not under them. A mark that lands early in
+     the window used to disappear behind the words; now it sits on top, and the
+     dark ring keeps it legible whether it is over the plate or the empty lane.
+     Marks are what the row is for -- the words are only saying which row. */
+  /* A hairline for the marks to sit on, so an empty lane still reads as a
+     stretch of time rather than as a blank box. */
+  .lane::after{
+    content:"";position:absolute;left:9px;right:9px;top:27px;height:1px;
+    background:rgba(255,255,255,.07);
   }
   .lane i{
-    position:absolute;top:50%;width:9px;height:9px;border-radius:50%;
-    transform:translate(-50%,-50%);background:var(--tone);
-    box-shadow:0 0 7px -1px var(--tone);
+    position:absolute;top:27px;width:9px;height:9px;border-radius:50%;
+    transform:translate(-50%,-50%);background:var(--tone);z-index:3;
+    box-shadow:0 0 0 2px rgba(12,15,20,.92), 0 0 7px -1px var(--tone);
   }
   /* A counter is the heaviest of the three, so it reads largest. */
-  .lane.counter i{width:14px;height:14px;}
+  .lane.counter i{width:13px;height:13px;box-shadow:0 0 0 2px rgba(12,15,20,.92), 0 0 9px -1px var(--tone);}
   .lane.counter{--tone:var(--gold);}
   .lane.good{--tone:var(--out);}
   .lane.bad{--tone:var(--in);}
@@ -506,6 +522,9 @@
   @media(max-width:860px){
     .lead-grid{grid-template-columns:1fr;}
     .picks{order:2;}
+    /* Stacked under the chart there is no column to fill, so it goes back to
+       a height of its own rather than running the length of the page. */
+    .rosterlist{flex:none;max-height:322px;}
   }
   @media(max-width:760px){
     .totals{grid-template-columns:1fr;}
@@ -1312,9 +1331,11 @@ function parts(){
 
   // Every category is shown whether or not it happened -- a row that vanishes
   // reads as the tool having missed something rather than as a zero.
-  // A parried swing always does nothing, so its damage is noise: count only.
+  // The three duel stats are counts. A parried swing does nothing by
+  // definition, and a counter is about damage that never arrived, so the
+  // figure beside it was only ever a 0 asking to be read as something.
   document.getElementById('parts').innerHTML =
-    `<div class="prow">${chip('Counter reduced', duel.counter, 'counter')}${
+    `<div class="prow">${chip('Counter reduced', duel.counter, 'counter', true)}${
       chip('Parry received', duel.parried, 'good', true)}${
       chip('Parry given', duel.gotparried, 'bad', true)}</div>` +
     `<div class="prow">${chip('Clean hits', clean, 'main')}${

@@ -72,6 +72,17 @@ WINDOW = None
 QUIET = None   # set once System.Drawing is available
 LIT = None
 STRIP = None   # the drop area itself, so the page can ask for it to step aside
+# How much room the drop area is taking: the big box on the landing view, a
+# slim bar while a report is open so another clip can still be dropped, or
+# nothing at all while a run is going.
+STRIP_MODE = "full"
+# Where the page wants the slim bar put, in the page's own pixels, plus how
+# wide the page thinks it is. The page is the only thing that knows where the
+# gap in its header is, and the two do not share a coordinate system: at any
+# display scaling other than 100% a page pixel is not a window pixel. Sending
+# the page width along makes the ratio between them measurable rather than
+# assumed.
+STRIP_RECT = None
 PAGE = EDGE = EDGE_LIT = INK = SOFT = None
 LAYOUT = None  # re-places the box and the browser view; set once the app is up
 
@@ -223,23 +234,69 @@ class Api:
             _log("could not read report: %s" % traceback.format_exc())
             return None
 
-    def show_strip(self, on):
-        """The drop area belongs to the landing view. While a run is going or a
-        report is open it would only be taking up room, so the page says when
-        it is wanted."""
+    def show_strip(self, mode):
+        """How much room the drop area should take.
+
+        "full" on the landing view, where dropping a clip is the whole point.
+        "slim" while a report is open -- a bar across the top, so another clip
+        can be dropped without going back first. "hidden" during a run.
+
+        Older pages sent a boolean; that still means full or hidden.
+        """
+        global STRIP_MODE
+        if mode is True:
+            mode = "full"
+        elif mode is False:
+            mode = "hidden"
+        STRIP_MODE = mode if mode in ("full", "slim", "hidden") else "full"
         try:
             if STRIP is not None and WINDOW is not None and WINDOW.native:
                 from System import Action
 
                 def apply():
-                    STRIP.Visible = bool(on)
+                    from System.Windows.Forms import Padding
+                    STRIP.Visible = STRIP_MODE != "hidden"
+                    STRIP.Padding = (Padding(0, 0, 0, 0) if STRIP_MODE == "slim"
+                                     else Padding(20, 16, 20, 12))
                     if LAYOUT:
                         LAYOUT()
+                    STRIP.Invalidate(True)
 
                 WINDOW.native.BeginInvoke(Action(apply))
         except Exception:                                    # noqa: BLE001
             pass
         return None
+
+    def strip_at(self, x, y, w, h, page_width):
+        """Put the slim bar in the gap the page just measured.
+
+        Called when a report opens and whenever the window is resized, because
+        the gap moves with it.
+        """
+        global STRIP_RECT
+        try:
+            STRIP_RECT = (float(x), float(y), float(w), float(h),
+                          float(page_width) or 1.0)
+            if WINDOW is not None and WINDOW.native and LAYOUT:
+                from System import Action
+                WINDOW.native.BeginInvoke(Action(LAYOUT))
+        except Exception:                                    # noqa: BLE001
+            pass
+        return None
+
+    def delete_report(self, path):
+        """Throw a report away: the page it shows and the data behind it."""
+        try:
+            base = os.path.splitext(path)[0]
+            gone = False
+            for f in (base + ".html", base + ".json"):
+                if os.path.exists(f):
+                    os.remove(f)
+                    gone = True
+            return gone
+        except Exception:                                    # noqa: BLE001
+            _log("could not delete report: %s" % traceback.format_exc())
+            return False
 
     def open_folder(self):
         folder = os.path.join(app_dir(), "reports")
@@ -459,24 +516,36 @@ def wire_native_drop(window, on_files, on_hover, api_choose):
             state = {"over": False}
             big = Font("Segoe UI Semibold", 16.0)
             small = Font("Segoe UI", 10.0)
+            mid = Font("Segoe UI Semibold", 12.0)
 
             def paint(sender, e):
                 g = e.Graphics
                 g.SmoothingMode = SmoothingMode.AntiAlias
                 r = zone.ClientRectangle
-                pen = Pen(EDGE_LIT if state["over"] else EDGE, 2.0)
+                thin = STRIP_MODE == "slim"
+                pen = Pen(EDGE_LIT if state["over"] else EDGE, 1.5 if thin else 2.0)
                 pen.DashStyle = DashStyle.Dash
-                g.DrawRectangle(pen, 2, 2, r.Width - 5, r.Height - 5)
+                inset = 0 if thin else 2
+                g.DrawRectangle(pen, inset, inset,
+                                r.Width - inset * 2 - 1, r.Height - inset * 2 - 1)
 
                 fmt = StringFormat()
                 fmt.Alignment = StringAlignment.Center
+                mid_y = r.Height / 2.0
+                if STRIP_MODE == "slim":
+                    # It is sitting in the page's header now, so it gets one
+                    # line and no more room than the header has.
+                    line = ("Let go to read it" if state["over"]
+                            else "Drop another clip here")
+                    g.DrawString(line, small, SolidBrush(INK),
+                                 RectangleF(0, mid_y - 10, r.Width, 22), fmt)
+                    return
                 title = "Let go to read it" if state["over"] else "Drop a clip here"
                 note = "" if state["over"] else "or click anywhere in this box to choose one"
-                mid = r.Height / 2.0
                 g.DrawString(title, big, SolidBrush(INK),
-                             RectangleF(0, mid - 30, r.Width, 34), fmt)
+                             RectangleF(0, mid_y - 30, r.Width, 34), fmt)
                 g.DrawString(note, small, SolidBrush(SOFT),
-                             RectangleF(0, mid + 8, r.Width, 24), fmt)
+                             RectangleF(0, mid_y + 8, r.Width, 24), fmt)
 
             zone.Paint += paint
             # Without this the panel repaints only the newly exposed sliver
@@ -528,7 +597,24 @@ def wire_native_drop(window, on_files, on_hover, api_choose):
                 try:
                     w = form.ClientSize.Width
                     h = form.ClientSize.Height
-                    top = max(190, int(h * 0.5)) if outer.Visible else 0
+                    if STRIP_MODE == "slim" and STRIP_RECT:
+                        # Sat in the page's own header, in the gap it measured
+                        # between its title and its buttons. The browser keeps
+                        # the whole window and the bar floats over the empty
+                        # part of it.
+                        sx, sy, sw, sh, pw = STRIP_RECT
+                        k = (float(w) / pw) if pw else 1.0
+                        c.SetBounds(0, 0, w, h)
+                        outer.SetBounds(int(sx * k), int(sy * k),
+                                        max(40, int(sw * k)), max(24, int(sh * k)))
+                        outer.BringToFront()
+                        return
+                    if not outer.Visible:
+                        top = 0
+                    elif STRIP_MODE == "slim":
+                        top = 96          # until the page has measured itself
+                    else:
+                        top = max(190, int(h * 0.5))
                     if outer.Visible:
                         outer.SetBounds(0, 0, w, top)
                     c.SetBounds(0, top, w, max(0, h - top))
