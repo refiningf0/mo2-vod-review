@@ -282,22 +282,35 @@ def read_amount(body):
     # touching the digits, then the bracket is the last digit -- but only when
     # the body part reads cleanly. A damaged one means the bracket went into
     # the letter beside it and the number was never touched.
-    if len(num) > 1 and _eats_bracket(tail):
+    if len(num) > 1 and _eats_bracket(tail, num):
         num = num[:-1]
     return int(num)
 
 
-def _eats_bracket(tail):
-    """True when `tail` is a body part sitting flush against the number.
+def _eats_bracket(tail, num):
+    """True when the number ran into the bracket that follows it.
 
-    Flush is the whole test. A space or any other debris between the digits
-    and the word means the bracket was dropped rather than read as a digit,
-    and the number is already whole.
+    Flush against a body part is the plain case: "for 225Arms]" is 22 on the
+    arms, because nothing at all sits where the "[" belongs.
+
+    A space is the same accident seen through worse OCR. On one recording the
+    bracket came back as a "1" with a space after it -- "for 641 Torso]" for a
+    hit of 64 -- and taking that at face value did double damage: it inflated
+    the number, and because other frames read the same line whole it landed as
+    a second hit beside the real one.
+
+    A space on its own is not enough to say so, though. The bracket may simply
+    have been dropped, leaving a number that was already right, and "for 48
+    Torso]" is 48. So across a gap the last digit must be a "1" -- which is
+    what "[" comes back as. Anything else in the gap, a surviving "[" above
+    all, means this is not that accident.
     """
-    word = re.match(r"[A-Za-z]{2,}", tail)
+    word = re.match(r"(\s*)([A-Za-z]{2,})", tail)
     if not word:
         return False
-    w = word.group(0).lower()
+    gap, w = word.group(1), word.group(2).lower()
+    if gap and not num.endswith("1"):
+        return False
     return any(b.startswith(w) or w.startswith(b) for b in BODY_PARTS)
 
 
