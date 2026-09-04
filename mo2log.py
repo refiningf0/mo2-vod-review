@@ -351,13 +351,15 @@ def extract(video, outdir, fps, crop, dur=None, segments=EXTRACT_SEGMENTS):
     raise RuntimeError("ffmpeg produced no frames -- check the file and codec")
 
 
-# Each frame is read twice, once through each treatment. They fail on
-# different lines -- pushing contrast rescues a line lost in a bright scene and
-# destroys one that was already legible -- and neither wins everywhere, so both
-# readings go to the consensus rather than one being chosen in advance. On a
-# fight checked against the in-game log this took the hits found from three of
-# five to five of five, and added nothing false.
-TREATMENTS = (prep, plain)
+# The treatments each frame is read through. Reading every frame twice, once
+# treated and once merely enlarged, was worth 60% more runtime while the
+# treatment was a contrast boost: the two failed on different lines and the
+# consensus needed both. Lifting the mid greys instead of pushing contrast
+# stopped the treated pass losing anything, so one is enough again -- it reads
+# the same five of five hits and the same eleven of eleven lines, at the old
+# speed. Adding `plain` back here is all it takes to read both ways again, and
+# everything downstream still expects to be told which pass a reading came from.
+TREATMENTS = (prep,)
 
 
 def _prep_one(job):

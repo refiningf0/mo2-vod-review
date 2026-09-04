@@ -467,14 +467,6 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
             if difflib.get_close_matches(na, [_norm(k) for k in kept],
                                          n=1, cutoff=0.86):
                 continue
-            # An apostrophe OCR lost runs the owner's name into their weapon:
-            # "Moocifer's arrow" read as "Moociferts arrow" is not a second
-            # player, and it is far enough from "Moocifer" to survive the test
-            # above. Anything that begins with a name already established, and
-            # is seen a fraction as often, is that name.
-            if any(na.startswith(_norm(k)) and counts[a] * 3 <= counts[k]
-                   for k in kept):
-                continue
             kept.append(a)
         anchors = kept
 

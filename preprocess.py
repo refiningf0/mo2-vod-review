@@ -5,7 +5,8 @@ treatment depends entirely on that background:
 
   * Dark scenes (dungeons, night, shadowed terrain) already have strong
     contrast between the white text and the ground behind it. Upscaling and
-    pushing contrast is enough, and it keeps the anti-aliased strokes intact.
+    lifting the mid greys is enough, and it leaves the anti-aliased strokes
+    where they are.
   * Bright scenes (sand, snow, sky) leave the text barely brighter than the
     ground. Contrast alone cannot separate them, so those need an adaptive
     threshold comparing each pixel to its local surroundings.
@@ -16,7 +17,7 @@ background flood in. So the crop is measured first and the method chosen to
 match it.
 """
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageFilter
 
 BRIGHT = 118  # mean luminance above which a crop counts as a bright scene
 
@@ -25,9 +26,24 @@ def _upscale(img, scale):
     return img.resize((img.width * scale, img.height * scale), Image.LANCZOS)
 
 
-def _dark_recipe(img, scale, contrast):
-    """Upscale and boost contrast -- best when the text already stands out."""
-    return ImageEnhance.Contrast(_upscale(img, scale)).enhance(contrast)
+def _dark_recipe(img, scale, gamma):
+    """Upscale and lift the mid greys -- best when the text already stands out.
+
+    This used to push contrast instead, which cost real hits. Contrast drives
+    values away from the middle, so anything already near black or white
+    clips -- and an anti-aliased stroke is *made* of the mid greys at its edge.
+    Those greys are what separate an 8 from a B. On a frame where "You hit
+    Moocifer for 10[Head][Handle]" was crisp to the eye, the contrasted image
+    came back as "You hit Moocifer for" while the untouched crop read it whole.
+
+    Gamma lifts the middle without moving either end, so a faint stroke gets
+    brighter and the gradient that gives it its shape survives. Measured
+    against the in-game log: the fight that read three of five hits now reads
+    five of five, the fight verified line for line stays at eleven of eleven,
+    and a third stops reading CLAUDEMASTER as CLAUDEMASrER.
+    """
+    lut = [min(255, int(((i / 255.0) ** gamma) * 255)) for i in range(256)] * 3
+    return _upscale(img, scale).point(lut)
 
 
 def _bright_recipe(img, scale, radius, delta):
@@ -52,7 +68,7 @@ def plain(img, scale=3):
     return _upscale(img if img.mode == "RGB" else img.convert("RGB"), scale)
 
 
-def prep(img, scale=3, contrast=2.0, radius=9, delta=18, force=None):
+def prep(img, scale=3, gamma=0.7, radius=9, delta=18, force=None):
     """Return an image ready for OCR.
 
     force: "dark" or "bright" to override the automatic choice.
@@ -68,7 +84,7 @@ def prep(img, scale=3, contrast=2.0, radius=9, delta=18, force=None):
 
     if mode == "bright":
         return _bright_recipe(img, scale, radius, delta)
-    return _dark_recipe(img, scale, contrast)
+    return _dark_recipe(img, scale, gamma)
 
 
 def prep_file(src, dst, **kw):
