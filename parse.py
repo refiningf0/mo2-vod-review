@@ -143,7 +143,7 @@ FLAG_WORDS = (
     "Foot", "Feet", "Left Limb", "Right Limb", "Lower Body", "Upper Body",
     "Parry", "Blocked", "Handle", "Equipment", "Impale", "Sting",
     "Armor Pierced", "Counter Reduced", "Spread Shot", "Forceful Strike",
-    "Off-Hand",
+    "Off-Hand", "Snap Shot", "Hack",
 )
 FLAG_BY_NORM = {_norm(f): f for f in FLAG_WORDS}
 FLAG_SET = set(FLAG_WORDS)
