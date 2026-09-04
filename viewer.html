@@ -30,6 +30,7 @@
     font:15px/1.55 ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
+  body.inapp{overflow:hidden;}
   .wrap{max-width:1000px;margin:0 auto;padding:44px 20px 120px;}
   .num{font-variant-numeric:tabular-nums;}
 
@@ -277,11 +278,12 @@
     background:rgba(255,255,255,.07);
   }
   .lane i{
-    position:absolute;top:27px;width:9px;height:9px;border-radius:50%;
+    cursor:pointer;position:absolute;top:27px;width:9px;height:9px;border-radius:50%;
     transform:translate(-50%,-50%);background:var(--tone);z-index:3;
     box-shadow:0 0 0 2px rgba(12,15,20,.92), 0 0 7px -1px var(--tone);
   }
   /* A counter is the heaviest of the three, so it reads largest. */
+  .lane i:hover{transform:translate(-50%,-50%) scale(1.5);}
   .lane.counter i{width:13px;height:13px;box-shadow:0 0 0 2px rgba(12,15,20,.92), 0 0 9px -1px var(--tone);}
   .lane.counter{--tone:var(--gold);}
   .lane.good{--tone:var(--out);}
@@ -417,6 +419,11 @@
   td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
   td.n.out{color:var(--out);} td.n.in{color:var(--in);}
   td.who{color:var(--ink);}
+  /* Only clickable where something is listening -- outside the app there is no
+     player to send it to, so the row must not pretend otherwise. */
+  .inapp tr.jump{cursor:pointer;}
+  .inapp tr.jump:hover td{background:rgba(255,255,255,.045);}
+  .inapp tr.jump:hover td.num{color:var(--accent);}
   .chip{display:inline-block;font-size:.66rem;color:var(--mid);border:1px solid var(--line-2);
         border-radius:5px;padding:1px 6px;margin-right:4px;}
 
@@ -625,6 +632,12 @@ const isNoise = f => NORMAL.includes(f);
 const isOutcome = f => OUTCOMES.includes(f);
 
 /* ---------------- loading ---------------- */
+// Any row or mark carrying a time is a moment you can go and watch.
+document.addEventListener('click', ev => {
+  const row = ev.target.closest && ev.target.closest('tr.jump');
+  if (row && row.dataset.t) watch(parseFloat(row.dataset.t));
+});
+
 window.addEventListener('DOMContentLoaded', () => {
   if (window.__BAKED__) { DATA = window.__BAKED__; start(); }
 });
@@ -694,8 +707,16 @@ function start(){
     // address to resolve a local file against and the link above goes
     // nowhere. Ask the app to play it instead; on its own in a browser the
     // link works and this does nothing.
+    if (inApp()) {
+      // So the app can offer the clip itself rather than handing it to
+      // whatever the machine opens .mp4 files with.
+      document.body.classList.add('inapp');
+      window.parent.postMessage(
+        {mo2: 'clip-path', path: DATA.source_path}, '*');
+      setTimeout(tellHeight, 60);
+    }
     const link = title.querySelector('a.clip');
-    if (link && window.parent !== window) {
+    if (link && inApp()) {
       link.addEventListener('click', e => {
         e.preventDefault();
         window.parent.postMessage(
@@ -1174,7 +1195,7 @@ function table(rows){
     const flags = (r.flags||[]).filter(f => !isNoise(f));
     const where = flags.filter(isBody);
     const how   = flags.filter(f => !isBody(f));
-    return `<tr>
+    return `<tr class="jump" data-t="${r.t.toFixed(2)}" title="Watch this moment">
       <td class="num">${fmt(r.t)}</td>
       <td class="who">${r.dir==='out' ? 'you hit' : 'hit you'}</td>
       <td class="n ${r.dir}">${r.amount}</td>
@@ -1232,6 +1253,32 @@ const DUEL_ICON = {
                   '<path d="M4.6 19.4l2.6-2.6"/><path d="M19.4 19.4l-2.6-2.6"/>'),
 };
 
+// The app hosts the clip; this page only says where to go. Outside the app
+// there is nothing listening and nothing happens, which is what should happen
+// to a report opened on a machine that has never seen the recording.
+const inApp = () => window.parent !== window;
+
+// In the app this page has no scrollbar of its own -- the frame around it is
+// given this height, so the clip above and the report below sit on one scroll.
+let toldHeight = 0;
+function tellHeight(){
+  if (!inApp()) return;
+  const h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+  if (Math.abs(h - toldHeight) < 4) return;
+  toldHeight = h;
+  window.parent.postMessage({mo2: 'height', h: h}, '*');
+}
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(() => tellHeight()).observe(document.documentElement);
+}
+window.addEventListener('load', tellHeight);
+window.addEventListener('resize', tellHeight);
+
+function watch(t){
+  if (!inApp() || !isFinite(t)) return;
+  window.parent.postMessage({mo2: 'seek', t: t}, '*');
+}
+
 function duel(){
   const el = document.getElementById('duel');
   const span = Math.max(T1 - T0, 0.001);
@@ -1258,7 +1305,8 @@ function duel(){
     // the moment it belongs to.
     const marks = rows.map(e =>
       `<i style="left:${(((e.t - T0) / span) * 100).toFixed(2)}%"
-          data-i="${idxOf.get(e)}" data-mk="${d.k}"></i>`).join('');
+          data-i="${idxOf.get(e)}" data-mk="${d.k}"
+          data-t="${e.t.toFixed(2)}"></i>`).join('');
 
     return `<button class="lane ${d.tone}${HILITE.has(d.k) ? ' on' : ''}${
         rows.length ? '' : ' zero'}" data-h="${d.k}"
@@ -1272,6 +1320,12 @@ function duel(){
 
   el.querySelectorAll('.lane').forEach(b =>
     b.addEventListener('click', () => setHilite(b.dataset.h)));
+  // Clicking the mark itself means "show me this", not "filter by this", so it
+  // takes the click before the lane can treat it as a toggle.
+  el.querySelectorAll('.lane i').forEach(m => m.addEventListener('click', ev => {
+    ev.stopPropagation();
+    watch(parseFloat(m.dataset.t));
+  }));
 }
 
 // Asking "who" and asking "what happened" at once usually leaves an empty

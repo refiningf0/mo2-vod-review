@@ -13,9 +13,13 @@ and fifty a bundled browser would.
 import io
 import json
 import os
+import re
+import secrets
+import socket
 import sys
 import threading
 import traceback
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import quote
 
 
@@ -72,19 +76,115 @@ WINDOW = None
 QUIET = None   # set once System.Drawing is available
 LIT = None
 STRIP = None   # the drop area itself, so the page can ask for it to step aside
-# How much room the drop area is taking: the big box on the landing view, a
-# slim bar while a report is open so another clip can still be dropped, or
-# nothing at all while a run is going.
+# Whether the drop area is on screen. It belongs to the fights list; over a
+# report it only took height the clip wanted.
 STRIP_MODE = "full"
-# Where the page wants the slim bar put, in the page's own pixels, plus how
-# wide the page thinks it is. The page is the only thing that knows where the
-# gap in its header is, and the two do not share a coordinate system: at any
-# display scaling other than 100% a page pixel is not a window pixel. Sending
-# the page width along makes the ratio between them measurable rather than
-# assumed.
-STRIP_RECT = None
 PAGE = EDGE = EDGE_LIT = INK = SOFT = None
 LAYOUT = None  # re-places the box and the browser view; set once the app is up
+
+
+class _ClipHandler(BaseHTTPRequestHandler):
+    """Hands the browser view the clip a report was read from.
+
+    It will not take the file straight from disk -- "Media load rejected by
+    URL safety check" -- so the app serves it to itself instead, which brings
+    seeking with it: a video can only jump to a point if what serves it will
+    answer for a stretch of the middle, and that is what Range asks for.
+
+    Bound to the loopback address, so nothing leaves the machine and no
+    firewall has an opinion. The token is there so that another program on the
+    same machine cannot go looking through the port for files.
+    """
+
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass                                     # not our console to scribble on
+
+    def _clip(self):
+        want = self.path.split("?")[0].strip("/")
+        holds = self.server.clip                 # (token, path)
+        if not holds or want != holds[0] or not os.path.exists(holds[1]):
+            return None
+        return holds[1]
+
+    def do_HEAD(self):
+        self._send(head_only=True)
+
+    def do_GET(self):
+        self._send(head_only=False)
+
+    def _send(self, head_only):
+        path = self._clip()
+        if not path:
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        size = os.path.getsize(path)
+        start, end = 0, size - 1
+        rng = self.headers.get("Range")
+        partial = False
+        if rng:
+            m = re.match(r"bytes=(\d*)-(\d*)", rng.strip())
+            if m and (m.group(1) or m.group(2)):
+                partial = True
+                if m.group(1):
+                    start = int(m.group(1))
+                    if m.group(2):
+                        end = int(m.group(2))
+                else:                            # bytes=-N, the last N bytes
+                    start = max(0, size - int(m.group(2)))
+        if start >= size:
+            self.send_response(416)
+            self.send_header("Content-Range", "bytes */%d" % size)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        end = min(end, size - 1)
+        length = end - start + 1
+
+        self.send_response(206 if partial else 200)
+        self.send_header("Content-Type", "video/mp4")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(length))
+        if partial:
+            self.send_header("Content-Range",
+                             "bytes %d-%d/%d" % (start, end, size))
+        self.end_headers()
+        if head_only:
+            return
+        try:
+            with io.open(path, "rb") as f:
+                f.seek(start)
+                left = length
+                while left > 0:
+                    chunk = f.read(min(1 << 16, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except Exception:                                    # noqa: BLE001
+            pass          # the view seeks away mid-read constantly; not a fault
+
+
+CLIPS = None             # the server, once something has asked for a clip
+
+
+def clip_server():
+    """The loopback server, started the first time a clip is wanted."""
+    global CLIPS
+    if CLIPS is None:
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+        s.close()
+        CLIPS = ThreadingHTTPServer(("127.0.0.1", port), _ClipHandler)
+        CLIPS.daemon_threads = True
+        CLIPS.clip = None
+        threading.Thread(target=CLIPS.serve_forever, daemon=True).start()
+        _log("clips: serving on 127.0.0.1:%d" % port)
+    return CLIPS
 
 
 def _log(msg):
@@ -237,27 +337,24 @@ class Api:
     def show_strip(self, mode):
         """How much room the drop area should take.
 
-        "full" on the landing view, where dropping a clip is the whole point.
-        "slim" while a report is open -- a bar across the top, so another clip
-        can be dropped without going back first. "hidden" during a run.
+        "full" on the landing view, where dropping a clip is the whole point,
+        and "hidden" everywhere else: over a report it was taking height the
+        clip wanted, and during a run there is nothing to drop on.
 
-        Older pages sent a boolean; that still means full or hidden.
+        Older pages sent a boolean, which means the same two things.
         """
         global STRIP_MODE
         if mode is True:
             mode = "full"
         elif mode is False:
             mode = "hidden"
-        STRIP_MODE = mode if mode in ("full", "slim", "hidden") else "full"
+        STRIP_MODE = mode if mode in ("full", "hidden") else "full"
         try:
             if STRIP is not None and WINDOW is not None and WINDOW.native:
                 from System import Action
 
                 def apply():
-                    from System.Windows.Forms import Padding
                     STRIP.Visible = STRIP_MODE != "hidden"
-                    STRIP.Padding = (Padding(0, 0, 0, 0) if STRIP_MODE == "slim"
-                                     else Padding(20, 16, 20, 12))
                     if LAYOUT:
                         LAYOUT()
                     STRIP.Invalidate(True)
@@ -267,22 +364,41 @@ class Api:
             pass
         return None
 
-    def strip_at(self, x, y, w, h, page_width):
-        """Put the slim bar in the gap the page just measured.
+    def report_data(self, path):
+        """The numbers behind a report, for the app's own strip of marks.
 
-        Called when a report opens and whenever the window is resized, because
-        the gap moves with it.
+        The report page has its own copy of these, but it lives in a frame and
+        the marks under the video do not.
         """
-        global STRIP_RECT
         try:
-            STRIP_RECT = (float(x), float(y), float(w), float(h),
-                          float(page_width) or 1.0)
-            if WINDOW is not None and WINDOW.native and LAYOUT:
-                from System import Action
-                WINDOW.native.BeginInvoke(Action(LAYOUT))
+            js = os.path.splitext(path)[0] + ".json"
+            with io.open(js, encoding="utf-8") as f:
+                d = json.load(f)
+            return {"duration": d.get("duration") or 0,
+                    "events": [e for e in d.get("events", [])
+                               if e.get("kind", "hit") == "hit"]}
         except Exception:                                    # noqa: BLE001
-            pass
-        return None
+            _log("no data for %s: %s" % (path, traceback.format_exc()))
+            return None
+
+    def clip_url(self, path):
+        """An address the view can play, for the clip this report was read from.
+
+        None when the clip is not where the report says it is -- a report
+        shared with someone else names a file on the machine it was made on,
+        and the page simply goes without a player rather than showing a broken
+        one.
+        """
+        try:
+            if not path or not os.path.exists(path):
+                return None
+            srv = clip_server()
+            token = secrets.token_urlsafe(16)
+            srv.clip = (token, os.path.abspath(path))
+            return "http://127.0.0.1:%d/%s" % (srv.server_address[1], token)
+        except Exception:                                    # noqa: BLE001
+            _log("clip_url failed: %s" % traceback.format_exc())
+            return None
 
     def delete_report(self, path):
         """Throw a report away: the page it shows and the data behind it."""
@@ -516,30 +632,18 @@ def wire_native_drop(window, on_files, on_hover, api_choose):
             state = {"over": False}
             big = Font("Segoe UI Semibold", 16.0)
             small = Font("Segoe UI", 10.0)
-            mid = Font("Segoe UI Semibold", 12.0)
 
             def paint(sender, e):
                 g = e.Graphics
                 g.SmoothingMode = SmoothingMode.AntiAlias
                 r = zone.ClientRectangle
-                thin = STRIP_MODE == "slim"
-                pen = Pen(EDGE_LIT if state["over"] else EDGE, 1.5 if thin else 2.0)
+                pen = Pen(EDGE_LIT if state["over"] else EDGE, 2.0)
                 pen.DashStyle = DashStyle.Dash
-                inset = 0 if thin else 2
-                g.DrawRectangle(pen, inset, inset,
-                                r.Width - inset * 2 - 1, r.Height - inset * 2 - 1)
+                g.DrawRectangle(pen, 2, 2, r.Width - 5, r.Height - 5)
 
                 fmt = StringFormat()
                 fmt.Alignment = StringAlignment.Center
                 mid_y = r.Height / 2.0
-                if STRIP_MODE == "slim":
-                    # It is sitting in the page's header now, so it gets one
-                    # line and no more room than the header has.
-                    line = ("Let go to read it" if state["over"]
-                            else "Drop another clip here")
-                    g.DrawString(line, small, SolidBrush(INK),
-                                 RectangleF(0, mid_y - 10, r.Width, 22), fmt)
-                    return
                 title = "Let go to read it" if state["over"] else "Drop a clip here"
                 note = "" if state["over"] else "or click anywhere in this box to choose one"
                 g.DrawString(title, big, SolidBrush(INK),
@@ -597,22 +701,8 @@ def wire_native_drop(window, on_files, on_hover, api_choose):
                 try:
                     w = form.ClientSize.Width
                     h = form.ClientSize.Height
-                    if STRIP_MODE == "slim" and STRIP_RECT:
-                        # Sat in the page's own header, in the gap it measured
-                        # between its title and its buttons. The browser keeps
-                        # the whole window and the bar floats over the empty
-                        # part of it.
-                        sx, sy, sw, sh, pw = STRIP_RECT
-                        k = (float(w) / pw) if pw else 1.0
-                        c.SetBounds(0, 0, w, h)
-                        outer.SetBounds(int(sx * k), int(sy * k),
-                                        max(40, int(sw * k)), max(24, int(sh * k)))
-                        outer.BringToFront()
-                        return
                     if not outer.Visible:
                         top = 0
-                    elif STRIP_MODE == "slim":
-                        top = 96          # until the page has measured itself
                     else:
                         top = max(190, int(h * 0.5))
                     if outer.Visible:

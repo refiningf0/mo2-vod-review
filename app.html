@@ -29,7 +29,14 @@
   header{
     flex:none;display:flex;align-items:center;gap:12px;
     padding:14px 20px;border-bottom:1px solid var(--line);
+    transition:padding .12s;
   }
+  /* Watching a clip, the name of the app is the least interesting thing on
+     screen. It stands down to a thin strip that is mostly somewhere to drop
+     the next clip, and gives the height back to the video. */
+  header.lean{padding:5px 12px;}
+  header.lean .mark,header.lean .sub{display:none;}
+  header.lean h1{font-size:.76rem;font-weight:600;color:var(--soft);}
   header .mark{
     width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
     background:linear-gradient(160deg,rgba(255,199,74,.9),rgba(255,199,74,.35));
@@ -37,11 +44,7 @@
   }
   header h1{font-size:.9rem;font-weight:700;margin:0;letter-spacing:.01em;}
   header .sub{font-size:.72rem;color:var(--soft);}
-  header .right{display:flex;gap:8px;align-items:center;}
-  /* Left empty on purpose: the drop bar is drawn by Windows and put here,
-     because a page cannot be told where a dropped file came from. It stretches
-     so the bar has the header's full height to fill, not just a line of it. */
-  header .gap{flex:1;min-width:80px;align-self:stretch;}
+  header .right{margin-left:auto;display:flex;gap:8px;align-items:center;}
   .btn{
     background:rgba(255,255,255,.05);border:1px solid var(--line-2);color:var(--ink);
     font:inherit;font-size:.78rem;padding:6px 13px;border-radius:8px;cursor:pointer;
@@ -113,9 +116,73 @@
   @media (prefers-reduced-motion:reduce){.bar.idle span{animation:none;width:100% !important;opacity:.5;}}
   #working .note{font-size:.76rem;color:var(--soft);text-align:center;}
 
-  /* ---- the report, shown in place ---- */
-  #view{flex:1;min-height:0;display:flex;flex-direction:column;}
-  #view iframe{flex:1;width:100%;border:0;background:var(--bg);}
+  /* ---- the report, shown in place ----
+     One scroller, not two: the clip and its marks take the window, and the
+     report is underneath, reached by scrolling past them. The frame is given
+     the report's own height so it never scrolls inside its own box. */
+  #view{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;}
+  #view iframe{display:block;width:100%;border:0;background:var(--bg);}
+
+  /* ---- the clip ---- */
+  #player{
+    flex:none;display:none;background:#000;position:relative;
+  }
+  #player.on{display:block;}
+  /* Height is set from what is actually on screen -- see fitPlayer(). Guessing
+     it left the bottom bar sliced in half. */
+  #player video{display:block;width:100%;background:#000;object-fit:contain;
+                height:60vh;min-height:240px;}
+  #player .bar{
+    position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;
+    gap:10px;padding:7px 12px;font-size:.74rem;color:var(--mid);
+    background:linear-gradient(0deg,rgba(0,0,0,.82),rgba(0,0,0,0));
+    opacity:0;transition:opacity .15s;pointer-events:none;
+  }
+  #player:hover .bar{opacity:1;}
+  #player .bar b{color:var(--ink);font-variant-numeric:tabular-nums;}
+  /* In the header, not over the video: a control that only appears when the
+     mouse is already on the thing it hides is a control you cannot find. */
+
+  /* ---- the three bars, under the clip and driving it ---- */
+  #deck{display:none;padding:7px 14px 12px;background:var(--bg);
+        border-bottom:1px solid var(--line);}
+  #deck.on{display:block;}
+  #deck .lane{
+    position:relative;display:block;width:100%;height:32px;margin-bottom:5px;
+    border-radius:7px;border:1px solid var(--line);cursor:default;
+    background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));
+  }
+  #deck .lane:last-child{margin-bottom:0;}
+  #deck .lab{
+    position:absolute;left:9px;top:0;height:14px;display:flex;align-items:center;
+    font-size:.55rem;letter-spacing:.09em;text-transform:uppercase;font-weight:600;
+    color:var(--mid);pointer-events:none;
+  }
+  #deck .n{
+    position:absolute;right:9px;top:0;height:14px;display:flex;align-items:center;
+    font-size:.68rem;font-weight:700;color:var(--tone);pointer-events:none;
+    font-variant-numeric:tabular-nums;
+  }
+  #deck .lane::after{content:"";position:absolute;left:9px;right:9px;top:22px;
+                     height:1px;background:rgba(255,255,255,.07);}
+  /* The mark you see stays small; the mark you click does not have to. A 20px
+     target around a 10px dot, so the bar can be a third shorter without the
+     marks getting fiddly again. */
+  #deck i{
+    position:absolute;top:22px;width:20px;height:20px;
+    transform:translate(-50%,-50%);cursor:pointer;
+  }
+  #deck i::after{
+    content:"";position:absolute;inset:5px;border-radius:50%;
+    background:var(--tone);transition:inset .1s;
+    box-shadow:0 0 0 2px rgba(12,15,20,.92),0 0 7px -1px var(--tone);
+  }
+  #deck i:hover::after{inset:1.5px;}
+  #deck i:active::after{inset:3px;}
+  #deck .counter{--tone:var(--gold);}
+  #deck .good{--tone:var(--out);}
+  #deck .bad{--tone:var(--in);}
+  #deck .none{color:var(--soft);}
 
   /* ---- something went wrong ---- */
   #oops{padding:26px;display:flex;flex-direction:column;gap:12px;}
@@ -138,8 +205,8 @@
     <h1>MO2 VOD Review</h1>
     <span class="sub" id="sub">drop a clip to read it</span>
   </span>
-  <span class="gap" id="gap"></span>
   <span class="right">
+    <button class="btn hide" id="vclip">Hide clip</button>
     <button class="btn hide" id="back">&larr; All fights</button>
   </span>
 </header>
@@ -163,6 +230,11 @@
 
   <!-- the report -->
   <section id="view" class="hide">
+    <div id="player">
+      <video id="vid" preload="metadata" controls playsinline></video>
+      <div class="bar"><span>Click a mark below, or anything in the report, to jump there</span></div>
+    </div>
+    <div id="deck"></div>
     <iframe id="frame" title="Fight report"></iframe>
     <div class="empty hide" id="frameoops">That report would not open.</div>
   </section>
@@ -180,43 +252,21 @@ const $ = id => document.getElementById(id);
 const show = which => {
   ['home','working','view','oops'].forEach(s => $(s).classList.toggle('hide', s !== which));
   $('back').classList.toggle('hide', which !== 'view');
+  document.querySelector('header').classList.toggle('lean', which === 'view');
+  if (which !== 'view') {
+    $('vid').pause();
+    $('player').classList.remove('on');
+    $('deck').classList.remove('on');
+    $('vclip').classList.add('hide');
+    haveClip = false; hasMarks = false; clipShown = true;
+  }
   // The drop area is drawn by Windows above this page, so it cannot know what
   // the page is showing unless it is told.
-  // A slim bar stays over the report, so another clip can be dropped without
-  // going back to the list first.
+  // The drop area belongs to the fights list. Over a report it was taking
+  // height the clip wanted, so it stands aside entirely.
   if (window.pywebview) window.pywebview.api.show_strip(
-    which === 'home' ? 'full' : which === 'working' ? 'hidden' : 'slim');
-  if (which !== 'home' && which !== 'working') placeStrip();
+    which === 'home' ? 'full' : 'hidden');
 };
-
-// Where the drop bar goes when a report is open: the empty middle of this
-// header. Windows draws that bar, not this page, and the two do not share a
-// coordinate system -- so the gap is measured here and sent across along with
-// how wide this page believes it is, which is what makes the two comparable.
-function placeStrip(){
-  if (!window.pywebview) return;
-  const gap = document.getElementById('gap');
-  const hdr = document.querySelector('header');
-  if (!gap || !hdr) return;
-  const r = gap.getBoundingClientRect();
-  const hb = hdr.getBoundingClientRect();
-  if (r.width < 40) return;
-  // Across, it stops short of the title and the buttons. Down, it takes the
-  // header's whole height rather than the room left inside its padding, so it
-  // meets the top of the window and the line under the header.
-  window.pywebview.api.strip_at(
-    Math.round(r.left + 10), Math.round(hb.top),
-    Math.round(r.width - 20), Math.round(hb.height),
-    window.innerWidth);
-}
-// The gap moves with the window, so it is measured again when that happens.
-let placeSoon;
-window.addEventListener('resize', () => {
-  clearTimeout(placeSoon);
-  placeSoon = setTimeout(() => {
-    if (!$('view').classList.contains('hide') || !$('oops').classList.contains('hide')) placeStrip();
-  }, 60);
-});
 
 // Python calls this as the run moves along.
 window.onProgress = (stage, done, total) => {
@@ -237,6 +287,8 @@ window.onProgress = (stage, done, total) => {
 };
 
 async function openReport(path){
+  // The bars under the clip come from the data, not the page.
+  window.pywebview.api.report_data(path).then(deck).catch(() => deck(null));
   // The report's HTML is fetched and written straight into the frame. Pointing
   // it at a file:// address left the view blank with nothing to explain it.
   const f = $('frame'), oops = $('frameoops');
@@ -345,14 +397,139 @@ document.addEventListener('drop', e => {
 
 // The report sits in a frame and cannot reach Python itself, so it asks
 // through here when someone clicks its title to play the clip.
-window.addEventListener('message', e => {
+// How far before the moment to start, so there is a run-up to watch rather
+// than the hit already having landed.
+const LEADIN = 2.5;
+let haveClip = false;
+
+window.addEventListener('message', async e => {
   const m = e.data;
-  if (m && m.mo2 === 'play-clip' && m.path && window.pywebview) {
-    window.pywebview.api.open_clip(m.path).then(ok => {
-      if (!ok) $('sub').textContent = 'that clip is not where the report says it is';
-    });
+  if (!m || !m.mo2 || !window.pywebview) return;
+
+  // The report says which clip it came from as soon as it opens.
+  if (m.mo2 === 'clip-path') {
+    haveClip = false;
+    $('player').classList.remove('on');
+    $('vclip').classList.add('hide');
+    if (!m.path) return;
+    const url = await window.pywebview.api.clip_url(m.path);
+    if (!url) return;                 // not on this machine; go without
+    $('vid').src = url;
+    haveClip = true;
+    $('vclip').classList.remove('hide');
+    showClip(true);
+    return;
+  }
+
+  // The report is as tall as it is; the frame is told to match so there is one
+  // scrollbar for the whole view rather than one inside another.
+  if (m.mo2 === 'height' && m.h > 0) {
+    $('frame').style.height = Math.ceil(m.h) + 'px';
+    return;
+  }
+
+  // A moment in the report was clicked.
+  if (m.mo2 === 'seek' && typeof m.t === 'number') { seekTo(m.t); return; }
+
+  // The title, which means the whole clip rather than a moment in it.
+  if (m.mo2 === 'play-clip') {
+    if (haveClip) {
+      if (!clipShown) showClip(true);
+      $('vid').play().catch(() => {});
+    } else {
+      window.pywebview.api.open_clip(m.path).then(ok => {
+        if (!ok) $('sub').textContent = 'that clip is not where the report says it is';
+      });
+    }
   }
 });
+
+// The three bars under the clip: every mark is a moment, and clicking one
+// takes the clip there. Drawn here rather than in the report, because the
+// report lives in a frame below and these belong with the video.
+const DECK = [
+  {k: 'counter', label: 'Counter reduced', tone: 'counter',
+   test: e => e.dir === 'in'  && (e.flags || []).includes('Counter Reduced')},
+  {k: 'parried', label: 'Parry received', tone: 'good',
+   test: e => e.dir === 'in'  && (e.flags || []).includes('Parry')},
+  {k: 'gotparried', label: 'Parry given', tone: 'bad',
+   test: e => e.dir === 'out' && (e.flags || []).includes('Parry')},
+];
+
+let hasMarks = false;
+
+function deck(data){
+  const el = $('deck');
+  hasMarks = false;
+  if (!data || !data.events || !data.events.length) {
+    el.classList.remove('on');
+    el.innerHTML = '';
+    return;
+  }
+  const span = Math.max(data.duration || 0,
+                        ...data.events.map(e => e.t), 1);
+  el.innerHTML = DECK.map(d => {
+    const rows = data.events.filter(d.test);
+    const marks = rows.map(e => {
+      const who = e.dir === 'in' ? e.who : e.target;
+      return `<i style="left:${((e.t / span) * 100).toFixed(2)}%" data-t="${e.t}"
+                 title="${fmt(e.t)} · ${d.label} · ${esc(who || '')}"></i>`;
+    }).join('');
+    return `<div class="lane ${d.tone}">
+      <span class="lab">${d.label}</span>${marks}
+      <span class="n${rows.length ? '' : ' none'}">${rows.length}</span></div>`;
+  }).join('');
+  hasMarks = true;
+  el.classList.toggle('on', clipShown);
+  el.querySelectorAll('i').forEach(m => m.addEventListener('click',
+    () => seekTo(parseFloat(m.dataset.t))));
+  fitPlayer();
+}
+
+const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const esc = t => String(t).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// The clip takes everything the window has left once the header and the bars
+// have had theirs, and a little more so the marks are not sitting on the edge.
+function fitPlayer(){
+  const v = $('vid'), d = $('deck'), h = document.querySelector('header');
+  if (!v) return;
+  const room = window.innerHeight - (h ? h.offsetHeight : 0)
+                                  - (d.classList.contains('on') ? d.offsetHeight : 0) - 6;
+  v.style.height = Math.max(240, Math.floor(room)) + 'px';
+}
+let fitSoon;
+window.addEventListener('resize', () => {
+  clearTimeout(fitSoon);
+  fitSoon = setTimeout(fitPlayer, 60);
+});
+
+function seekTo(t){
+  if (!haveClip || !isFinite(t)) return;
+  if (!clipShown) showClip(true);      // asking to watch a moment says as much
+  const v = $('vid');
+  const to = Math.max(0, t - LEADIN);
+  const go = () => { v.currentTime = to; v.play().catch(() => {}); };
+  if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, {once: true});
+  $('view').scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// The clip and the marks under it are one thing: the marks only mean anything
+// as a way into the video, so hiding it takes them with it and leaves the
+// report the whole window.
+let clipShown = true;
+
+function showClip(on){
+  clipShown = on;
+  $('player').classList.toggle('on', on && haveClip);
+  $('deck').classList.toggle('on', on && hasMarks);
+  $('vclip').textContent = on ? 'Hide clip' : 'Show clip';
+  if (!on) $('vid').pause();
+  fitPlayer();
+}
+
+$('vclip').addEventListener('click', () => showClip(!clipShown));
 
 window.addEventListener('pywebviewready', refresh);
 </script>
