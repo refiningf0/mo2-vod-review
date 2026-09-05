@@ -163,13 +163,17 @@
     font-size:.68rem;font-weight:700;color:var(--tone);pointer-events:none;
     font-variant-numeric:tabular-nums;
   }
+  /* The line the marks sit on. It is drawn after them, so without this it
+     takes the click for the two pixels straight through the middle of every
+     dot -- exactly where anyone aims. */
   #deck .lane::after{content:"";position:absolute;left:9px;right:9px;top:22px;
-                     height:1px;background:rgba(255,255,255,.07);}
+                     height:1px;background:rgba(255,255,255,.07);
+                     pointer-events:none;}
   /* The mark you see stays small; the mark you click does not have to. A 20px
      target around a 10px dot, so the bar can be a third shorter without the
      marks getting fiddly again. */
   #deck i{
-    position:absolute;top:22px;width:20px;height:20px;
+    position:absolute;top:22px;width:20px;height:20px;z-index:2;
     transform:translate(-50%,-50%);cursor:pointer;
   }
   #deck i::after{
