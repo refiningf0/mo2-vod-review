@@ -398,8 +398,9 @@ document.addEventListener('drop', e => {
 // The report sits in a frame and cannot reach Python itself, so it asks
 // through here when someone clicks its title to play the clip.
 // How far before the moment to start, so there is a run-up to watch rather
-// than the hit already having landed.
-const LEADIN = 2.5;
+// than the hit already having landed. A parry is decided well before the log
+// records it, so the seconds in front of it are the ones worth seeing.
+const LEADIN = 4;
 let haveClip = false;
 
 window.addEventListener('message', async e => {
