@@ -119,6 +119,43 @@ is now a quarter of whatever is typical for that clip: 5 where lines are read
 against a clip that had not been touched in hours -- agreeing with two similar
 clips is not the same as being right.
 
+**Then the relative threshold climbed into the real hits.** A quarter of the
+median is the right cutoff only while the readings cluster around one number.
+On a clip where the fight paused, eight lines sat on screen for the rest of the
+recording and were read 27 to 60 times each, while four more flashed past and
+were read 2 to 6 times. The median landed inside the high cluster and the
+cutoff came out at 7 -- straight through the middle of the short-lived lines.
+It deleted a `61[Torso]` and a `51[Left Limb]` that OCR had read cleanly, and
+took a player off the roster with them.
+
+Worse, it got there by improving. Correcting two misread numbers merged their
+readings into the events they belonged to, which removed the low-read events
+holding the median down and pushed the cutoff up. A better reading was making
+the report smaller, which is the opposite of a threshold's job.
+
+So the cutoff still falls with the clip -- that is the direction the
+fast-scrolling fight cares about -- but it no longer rises past two. Across
+every clip measured against an in-game log, everything the threshold rightly
+dropped had been read exactly once; nothing needed a cutoff above two to catch
+it. On the dungeon clip the cap also handed back two heals, `Xantheria's Lesser
+Heal for 25` and `DiscoBaller's Lesser Heal for 31`, that the old cutoff of 4
+had been quietly deleting.
+
+**A misread digit is not always an extra one.** Settling numbers across frames
+only knew one failure: a character wedged into the number, `55` reading `551`.
+Against two clips with a screenshot of the in-game log beside them, the commoner
+failure turned out to be a character *swapped* -- `28[Torso]` came back `98`,
+`27[Left Limb]` came back `97`, `0[Parry]` came back `9[Pany]` -- or a character
+*lost*, where `for 23` read `forQ3` and the stray letter was stripped as noise,
+leaving 3. Each of those was a phantom hit standing beside the real one.
+Widening the rule to all three shapes removed them and changed nothing else.
+
+One character swapped is a wider net than one inserted, though, and it needs
+the length to stay honest: a one-digit number has no shape left to go wrong, so
+swapping its only character just replaces the number. Allowing that turned
+`for'S` -- the wreckage of a 35 the report had already read correctly -- into a
+hit for 0 that never happened. Swaps now need two digits to work with.
+
 **A repeated hit vanished into the first one.** Readings that lost their
 timestamp were folded into whichever timestamped hit shared their damage and
 target, no matter how far apart -- so hitting someone for 30 twice in a fight

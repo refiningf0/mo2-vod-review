@@ -563,9 +563,25 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         # a fast-scrolling one gives two -- so a fixed cutoff either lets
         # phantoms through or deletes most of a busy fight. Judge each event
         # against what is normal for its own clip instead.
+        #
+        # The median is the right centre to take but the wrong one to trust
+        # upwards. A clip whose lines are bimodal -- a handful that sat on
+        # screen for the whole fight beside several that flashed past -- puts
+        # the median inside the high cluster, and a quarter of that lands in
+        # the middle of the real hits. One such clip read its lines 27 to 60
+        # times each while four more were read 2 to 6 times, and the cutoff
+        # came out at 7: it deleted a 61 and a 51 that OCR had read cleanly,
+        # and took a player off the roster with them.
+        #
+        # So the cutoff stays relative downwards, which is the direction that
+        # matters -- a fast-scrolling fight must not be wiped out by a fixed
+        # number -- and is stopped from climbing. Everything it legitimately
+        # drops, across every clip measured against an in-game log, was read
+        # exactly once; nothing needed a cutoff above two to catch it.
+        SEEN_CAP = 2
         seen_all = sorted(e.get("seen", 1) for e in events)
         typical = seen_all[len(seen_all) // 2] if seen_all else 1
-        floor = min_seen if min_seen else max(1, int(typical * 0.25))
+        floor = min_seen if min_seen else min(max(1, int(typical * 0.25)), SEEN_CAP)
 
         # Counting readings asks the wrong question of two kinds of real hit.
         #

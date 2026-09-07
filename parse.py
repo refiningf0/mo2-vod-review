@@ -515,13 +515,18 @@ def _settle_amounts(events, visible):
     until "for 18" reads "for818". Occasionally the traffic goes the other way
     and a digit is lost into the debris beside it.
 
+    A digit is also simply misread: "28[Torso]" comes back "98[Torso]" and
+    "0[Parry]" as "9[Pany]". Nothing about the number itself says which
+    happened, and it does not matter -- see `_one_glyph_off` for the three
+    shapes this takes.
+
     No single line betrays any of this: "551" is a perfectly well-formed
     reading. What gives it away is the same thing that gives away a misread
     name -- the other frames. A line sits on screen for seconds and is read
     from every frame in that span, so the true number is read repeatedly while
-    a glyph collision happens in one frame and not its neighbours. A number
-    read once, holding a number the same fighter's line shows more often
-    within that span, is that number wearing something extra.
+    a glyph goes wrong in one frame and not its neighbours. A number read
+    once, standing one character away from a number the same fighter's line
+    shows more often within that span, is that number misread.
 
     Names are compared this way already; the amounts were the part still
     taking each frame at its word. Only a strict majority moves anything: two
@@ -559,7 +564,7 @@ def _settle_amounts(events, visible):
             best = best_n = None
             for other in company:
                 d = str(other["amount"])
-                if not _one_glyph_over(digits, d):
+                if not _one_glyph_off(digits, d):
                     continue
                 n = counts[other["amount"]]
                 if n <= 1:
@@ -575,17 +580,43 @@ def _settle_amounts(events, visible):
     return events
 
 
-def _one_glyph_over(digits, other):
-    """True when `digits` is `other` with one extra character wedged into it.
+def _one_glyph_off(digits, other):
+    """True when `digits` is `other` with one character added, swapped or lost.
 
-    That is the whole shape of the failure. A mark beside the number joins it
-    -- the opening bracket at the end ("55" reads "551"), debris at the front
-    ("18" reads "818"), or something landing in the gap between two digits
-    ("11" reads "Isl", which converts to 151). One character in, anywhere.
+    Three shapes, all of them one glyph going wrong at the join between the
+    number and what sits beside it:
+
+      * One character wedged in. A mark beside the number joins it -- the
+        opening bracket at the end ("55" reads "551"), debris at the front
+        ("18" reads "818"), or something landing in the gap between two digits
+        ("11" reads "Isl", which converts to 151).
+      * One character read as another. "28[Torso]" comes back "98[Torso]",
+        "27[Left Limb]" as "97", "0[Parry]" as "9[Pany]" -- measured, all
+        three, on one clip against the in-game log.
+      * One character lost into the debris beside it. "for 23" reads "forQ3"
+        and the leading letter is stripped as noise, leaving 3; "for 26" reads
+        "forZf" and leaves 2.
+
+    A swap is the risky one, since 34 and 24 are both perfectly good hits. What
+    makes it safe is the company it is judged in, decided by the caller: only a
+    reading that stands alone is a candidate, only a strict majority of the
+    same fighter's readings can move it, and only from inside the window where
+    one line was on screen. On the four clips with a ground-truth log this
+    removed three phantom hits and cost nothing.
+
+    A one-character number is excluded from the swap, because there is no
+    shape left in it to go wrong: replacing that character replaces the whole
+    number, which is not evidence of anything. Allowing it turned a reading of
+    "for'S" -- the wreckage of a 35 the report had already read correctly --
+    into a hit for 0 that never happened.
     """
-    if len(digits) != len(other) + 1:
-        return False
-    return any(digits[:i] + digits[i + 1:] == other for i in range(len(digits)))
+    if len(digits) == len(other) + 1:
+        return any(digits[:i] + digits[i + 1:] == other for i in range(len(digits)))
+    if len(digits) == len(other):
+        return len(digits) >= 2 and sum(a != b for a, b in zip(digits, other)) == 1
+    if len(digits) + 1 == len(other):
+        return any(other[:i] + other[i + 1:] == digits for i in range(len(other)))
+    return False
 
 
 def _read_at(e):
