@@ -92,7 +92,15 @@ RE_OUT_ABIL = re.compile(r"\byour\s*" + SPELL + r"\s*" + HIT + SEP + NAME +
 
 RE_OUT = re.compile(r"\b" + YOU + r"\s+" + HIT + SEP + NAME + SEP + FOR + SEP + AMT_TOK, re.I)
 RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s+" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
-RE_IN = re.compile(NAME + r"\s+" + HITS + r"?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
+# The space in front of "hits" goes the same way the one in front of "for"
+# does, and just as often: "CTOUKhits you for 24[Torso]" came back 31 times on
+# one clip and parsed none of them, so that player and every hit they landed
+# were missing from the report entirely. Where the space survives, "hit" may
+# lose its own tail as before; where it does not, the whole word has to be
+# there -- otherwise the name simply swallows it and every attacker in the log
+# ends up called something ending in "hits".
+RE_IN = re.compile(NAME + r"(?:\s+" + HITS + r"?|" + HITS + r")" +
+                   SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 # "Ith's Corrupt hit you", but with the possessive damaged. OCR loses the
 # apostrophe or the s after it -- "Ith'? Corrupt", "Itys Corrupt" -- and the
 # pattern above then reads the spell as the attacker, so a DoT called Corrupt

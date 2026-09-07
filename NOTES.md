@@ -285,6 +285,22 @@ is a word the game meant; a tail that begins in the middle of a word is
 damage. `dooty` starts inside `Troglodooty`, `Bloodletter` starts a word of its
 own. The two readings merged, seen 8 and seen 3 becoming one hit seen 11.
 
+**A missing space hid a whole player.** The gate for an incoming hit wanted a
+name, then whitespace, then "hits". OCR loses that space exactly as readily as
+the one in front of "for" -- `CTOUKhits you for 24[Torso]` came back 31 times
+on one clip and not one of them parsed. CTOUK was not in the roster, and
+neither was a single hit they landed; the same went for most of what OPE111HUK
+threw. Eight real incoming hits, read between 14 and 51 times each, were being
+discarded on a space.
+
+Letting the space vanish needs care in one direction. With it gone the name is
+free to swallow the word behind it, and every attacker in the log ends up
+called something ending in "hits" -- so where the space survives, "hit" may
+lose its own tail as before, and where it does not, the whole word has to be
+there. Diffed across 17,822 cached OCR lines from seven clips: 621 readings
+newly parsed, none lost, none altered. Incoming damage on that fight went from
+135 to 322, and every other clip came out byte-identical.
+
 **Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
 Explorer resolves that differently from a terminal, so the tool worked when run
 by hand and died on `No module named PIL` when a video was dropped on it. It
