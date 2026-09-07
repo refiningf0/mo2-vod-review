@@ -795,6 +795,40 @@ def dedupe(events, visible=12.0):
         any(n["amount"] == e["amount"] and abs(n["t"] - e["t"]) <= visible
             for n in named))]
 
+    # One log line read two ways, standing in the report as two hits.
+    #
+    # A line's own [hh:mm:ss] names it exactly, so two events carrying the same
+    # timestamp, the same fighter and the same body part are the same line --
+    # unless MO2 printed two hits on one target inside one second with
+    # identical flags. When their numbers also stand one glyph apart, the
+    # rarer reading is the misread one: "21[Torso][Handle]" came back 17 times
+    # against "24[Torso][Handle]" 4 times, and the in-game log has the 21.
+    #
+    # _settle_amounts cannot reach this. It only reconsiders a number seen
+    # once in the whole fight, and 24 is a perfectly real amount elsewhere in
+    # this one -- landed twice on other targets. The scope that matters is the
+    # line, not the fight.
+    #
+    # The loser has to be well under half the winner. Two hits that both
+    # happened are on screen together and get read about equally often, so a
+    # near-even split is two hits and is left alone.
+    twins = {}
+    for e in out:
+        if e["exact"]:
+            twins.setdefault((e.get("kind", "hit"), e["dir"], nm(e), e["t"],
+                              tuple(e.get("flags") or [])), []).append(e)
+    misread = set()
+    for rows in twins.values():
+        if len(rows) < 2:
+            continue
+        rows.sort(key=lambda r: -r.get("seen", 1))
+        best = rows[0]
+        for other in rows[1:]:
+            if (other.get("seen", 1) * 2 < best.get("seen", 1)
+                    and _one_glyph_off(str(other["amount"]), str(best["amount"]))):
+                misread.add(id(other))
+    out = [e for e in out if id(e) not in misread]
+
     out.sort(key=lambda e: (e["t"], e["dir"]))
     return out
 

@@ -156,6 +156,28 @@ swapping its only character just replaces the number. Allowing that turned
 `for'S` -- the wreckage of a 35 the report had already read correctly -- into a
 hit for 0 that never happened. Swaps now need two digits to work with.
 
+**The stubborn phantom was scoped wrong, not shaped wrong.** One hit survived
+all of that: a `24[Torso][Handle]` on Alwane that the in-game log says was a
+`21[Torso][Handle]`, sitting in the report beside the real one and putting the
+fight 24 damage over for weeks. Widening the shapes did nothing for it, because
+settling numbers only ever reconsiders a reading seen *once in the whole
+fight* -- and 24 is a perfectly real amount in that fight, landed twice on
+other targets. The count was 17, not 1, so the rule never looked.
+
+The line's own timestamp is what identifies it. Both events carried
+`[02:14:15]`, the same target and the same body part, and differed only in the
+number: 21 read 17 times, 24 read 4. Two events agreeing on the second, the
+fighter and the flags are one line unless MO2 printed two hits on one target
+inside one second with identical flags -- and when their numbers stand one
+glyph apart as well, the rarer one is the misreading. The loser has to be well
+under half the winner, since two hits that both happened are on screen together
+and get read about equally often.
+
+Across five clips this fired exactly once, on that hit. Every other line in
+every clip carries a single amount at its timestamp, so there was nothing else
+for it to catch and nothing for it to damage. The clip now reads 430 over 15
+hits against a log of 430 over 15 -- hit for hit.
+
 **A repeated hit vanished into the first one.** Readings that lost their
 timestamp were folded into whichever timestamped hit shared their damage and
 target, no matter how far apart -- so hitting someone for 30 twice in a fight
