@@ -134,6 +134,27 @@ def is_weapon(n):
     return n.lower().strip("'s") in WEAPONS
 
 
+def _cut_midword(full, frag):
+    """True when `frag` starts inside a word of `full` rather than opening one.
+
+    The test that lets a lost front be folded back without folding away a real
+    name that happens to sit at the end of a longer one. MO2 builds mob names
+    by running capitalised words together, so a tail that begins on a capital
+    is a word the game meant -- Bloodletter inside AkYabanBloodletter, a
+    separate mob. A tail that begins on a lowercase letter is a cut through the
+    middle of one: "dooty" out of "Troglodooty".
+
+    Judged on the full name's own spelling where it can be, since that is the
+    reading OCR got right; the fragment's first letter is the fallback for when
+    it mangled the spelling too.
+    """
+    lf, lg = full.lower(), frag.lower()
+    i = lf.rfind(lg)
+    if i > 0:
+        return full[i].islower()
+    return frag[:1].islower()
+
+
 def _norm(n):
     """Fold the letter confusions OCR makes most often, for comparison only."""
     n = n.lower()
@@ -482,6 +503,20 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
             # with the other.
             if any(_norm(k).startswith(na) and counts[k] >= counts[a] * 5
                    for k in kept):
+                continue
+            # OCR loses the front of a name as well as the end, handing back
+            # "dooty" for "Troglodooty" -- seen 3 times against 65, and still
+            # enough to clear anchor_min and stand in the roster as a fourth
+            # player in a three-player fight.
+            #
+            # A tail cannot fold on spelling alone, because a real name can sit
+            # at the end of a longer one: AkYabanBloodletter and Bloodletter are
+            # different mobs. What separates them is where the cut falls.
+            # "Bloodletter" starts a word of its own inside AkYabanBloodletter,
+            # so it is a name; "dooty" begins in the middle of "Troglodooty",
+            # which is not something anybody was called. See _cut_midword.
+            if any(_norm(k).endswith(na) and counts[k] >= counts[a] * 5
+                   and _cut_midword(k, a) for k in kept):
                 continue
             kept.append(a)
         anchors = kept

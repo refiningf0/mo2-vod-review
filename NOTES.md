@@ -269,6 +269,22 @@ on every single frame, cleared the bar, and split one player's damage across
 two names. Candidate names are now folded against each other first, keeping
 whichever spelling was seen most.
 
+**And a name with its front missing became a fourth player.** OCR gives up on
+the start of a long name as readily as the end, handing back `dooty` for
+`Troglodooty` -- 3 readings against 65, still enough to clear the bar. It stood
+in the roster of a three-player fight as a fourth, and carried a duplicate of a
+real hit with it: at the same second, the same 14, the same `[Torso]`, one copy
+filed under `Troglodooty` and one under `dooty`, so that hit was counted twice.
+
+A tail cannot be folded on spelling the way a front can. A real name sits at
+the end of a longer one often enough to matter -- `AkYabanBloodletter` and
+`Bloodletter` are different mobs, and folding those together would be worse
+than the problem. What separates them is where the cut falls. MO2 builds mob
+names by running capitalised words together, so a tail that begins on a capital
+is a word the game meant; a tail that begins in the middle of a word is
+damage. `dooty` starts inside `Troglodooty`, `Bloodletter` starts a word of its
+own. The two readings merged, seen 8 and seen 3 becoming one hit seen 11.
+
 **Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
 Explorer resolves that differently from a terminal, so the tool worked when run
 by hand and died on `No module named PIL` when a video was dropped on it. It
