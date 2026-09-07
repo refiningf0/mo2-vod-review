@@ -158,8 +158,15 @@ def _cut_midword(full, frag):
 def _norm(n):
     """Fold the letter confusions OCR makes most often, for comparison only."""
     n = n.lower()
+    # The digit-for-letter swaps have to happen while the digits are still
+    # here: the line below throws away everything that is not a letter, so a
+    # digit left standing is deleted rather than folded. "1" is the one that
+    # matters most and was the one being lost -- "G01dKi11er" came back as
+    # "godkier" with the ones gone, which is far enough from "goldkiller" to
+    # miss the fold and stand in the roster as a second player, carrying a
+    # duplicate of every hit landed on the first.
     for a, b in (("rn", "m"), ("cl", "d"), ("vv", "w"), ("vy", "w"),
-                 ("0", "o"), ("5", "s"), ("8", "b"), ("2", "z")):
+                 ("0", "o"), ("5", "s"), ("8", "b"), ("2", "z"), ("1", "l")):
         n = n.replace(a, b)
     n = re.sub(r"[^a-z]", "", n)
     # i, l and 1 are the single most confused glyph group in this font --
