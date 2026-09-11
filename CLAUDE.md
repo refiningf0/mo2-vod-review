@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Mortal Online 2 never writes its combat log to disk — it only draws it on screen — so this reads the log back off gameplay video with OCR and turns it into a report. Windows only: the OCR engine is the operating system's own, which is why the packaged app has nothing to install.
+Mortal Online 2 never writes its combat log to disk — it only draws it on screen — so this reads the log back off gameplay video with OCR and turns it into a report. Windows only. OCR is PaddleOCR's PP-OCR models on ONNX Runtime (via `rapidocr`), bundled with their model files so the packaged app installs and downloads nothing; Windows' own OCR (`ocr_batch.ps1`) remains as the fallback when those packages are missing, and via `--engine windows`.
 
 `README.md` is the design record and explains *why* each rule exists, with the measurements behind it. Read it before changing the parsing or the crop.
 
@@ -26,7 +26,7 @@ python dump_lines.py "clip.mp4" 2
 python -m PyInstaller --noconfirm --distpath dist --workpath build MO2VODReview.spec
 ```
 
-Useful flags on `mo2log.py`: `--crop x,y,w,h`, `--players Name1,Name2` (snaps every OCR spelling to real names), `--min-seen N`, `--keep-frames`.
+Useful flags on `mo2log.py`: `--crop x,y,w,h`, `--players Name1,Name2` (snaps every OCR spelling to real names), `--min-seen N`, `--keep-frames`, `--engine windows` (the old reader, for comparison).
 
 ## There are no tests
 
@@ -45,8 +45,8 @@ One pass, in `mo2log.run()`:
 probe        ffprobe for dimensions and duration
 crop         default_crop(), and only if nothing is found there, detect_crop()
 extract      ffmpeg -> PNG per frame, hardware decode first (AV1)
-preprocess   prep() per frame, fanned across cores
-OCR          ocr_batch.ps1, one PowerShell process per core over disjoint slices
+OCR          paddle_ocr.read_frames() on the raw crop, one worker per two cores
+             (fallback: prep() per frame, then ocr_batch.ps1 per core)
 parse_line   one line of OCR text -> one event, or None
 canonical_names   every OCR spelling of a name collapsed onto one
 timestamp shift   wall-clock lines and frame-timed lines reconciled onto one clock
@@ -58,7 +58,8 @@ seen floor   drop events read fewer times than is typical for this clip
 |---|---|
 | `mo2log.py` | the pipeline, ffmpeg/OCR orchestration, crop detection |
 | `parse.py` | OCR text → events; the regexes, name clustering, dedupe, consensus |
-| `preprocess.py` | choosing and applying the image treatment per frame |
+| `paddle_ocr.py` | the OCR reader: PaddleOCR models via rapidocr, and the two settings changed from its defaults |
+| `preprocess.py` | choosing and applying the image treatment per frame (Windows OCR fallback only) |
 | `make_report.py` | bakes a JSON into `viewer.html` as `window.__BAKED__` |
 | `viewer.html` | the whole report — markup, CSS and JS in one file, no network |
 | `mo2fightlog.py` | entry point; `report_paths()` decides where output goes |
@@ -69,6 +70,8 @@ seen floor   drop events read fewer times than is typical for this clip
 Each of these was arrived at by something breaking. Undoing one looks like a simplification and costs accuracy.
 
 - **Do not widen the crop.** MO2 paints damage numbers over the world as well as into the log, and both read as combat lines. 100px more at the top invented hits; 3px too high clipped real ones. Sensitive in both directions.
+- **The reader is PaddleOCR, and it reads the raw crop.** Scored against four in-game logs (109 hits, dungeon and outdoors) Windows OCR found 103 and PaddleOCR 109, inventing none. Tesseract matched Windows OCR exactly, which is why the engine was wrongly written off once -- measure an engine against the logs, never reason from another. Its gain is mostly timestamps: it keeps `[hh:mm:ss]` on nearly every line, which is what splits repeated identical parries. Two defaults are off, each measured: the upside-down-text classifier (`use_cls`) flipped good lines and cost a hit; `Det.limit_side_len` 736 -> 400 halved the time and lost nothing at any value tried. Every preprocessing treatment under it scored the same or worse. Known weakness: text over sunlit sand, where it returns debris Windows OCR could still read. It drops spaces far more than Windows OCR does (`Youhit`, `[RightLimb]`), so the gaps below matter more now.
+- The next four bullets apply to the **Windows OCR fallback**, which still preprocesses.
 - **Lift the mid greys, never push contrast.** Contrast drives values away from the middle, so anything near black or white clips -- and an anti-aliased stroke is made of the mid greys at its edge, which are what separate an `8` from a `B`. A hit whose line was crisp to the eye came back as `You hit Moocifer for`; the untreated crop read it whole. Gamma lifts the middle without moving either end and costs nothing: five of five hits on the fight the in-game log covers, still eleven of eleven on the one verified line for line, and `CLAUDEMASTER` stops reading as `CLAUDEMASrER`.
 - **The pipeline can read every frame through several treatments** -- `TREATMENTS` in `mo2log.py` -- and which one a reading came from travels with it, because two readings of one line would otherwise look exactly like one line shown twice and every hit would double. One treatment is enough now that it stopped destroying text; adding `plain` back is a one-word change if a clip ever needs it.
 - **The 3× upscale before OCR is load-bearing.** Halving it removes 56% of the pixels from the two slowest stages and took a hand-checked clip from 100% to 79%.
@@ -78,7 +81,7 @@ Each of these was arrived at by something breaking. Undoing one looks like a sim
 - **The noise floor is relative, not fixed — but only downwards.** How many times a line gets read is a property of the clip. A fixed cutoff of 3 took a fast-scrolling fight from 139 damage to nothing. It is capped at 2 going the other way: on a clip whose lines are bimodal (a few read 27–60 times, several read 2–6) the median sits in the high cluster and a quarter of it cuts through the real hits, deleting a clean `61[Torso]` and a player with it. Improving the readings *raises* that median, so better parsing made the report smaller until the cap went in.
 - **How long a line stays on screen is not a constant.** It depends on how busy the fight is: measured across four fights, lines sat there for 16 to 78 seconds. Nothing may assume a fixed window. A stretch of identical readings is one line for as long as it keeps being read; only distinct timestamps, or two copies in a single frame, split it. A fixed twelve-second window used to fabricate a quarter of a report.
 - **Numbers are settled across frames, not per line.** `551` is a well-formed reading; nothing in that line says it is wrong. A line is read 6–25 times, so a reading seen once that stands one character away from another reading is that reading — one character wedged in (`55`→`551`), swapped (`28`→`98`, `0[Parry]`→`9[Pany]`), or lost (`for 23`→`forQ3`→3). Only a strict majority moves anything. A swap needs two digits: replacing the only character of a one-digit number replaces the number, which turned a stray `for'S` into a hit for 0 that never happened.
-- **A bracket read as a digit inflates the number and duplicates the hit.** `for 64[Torso]` comes back as `for 641 Torso]`, which is both a wrong number and, since other frames read the line whole, a second hit beside the real one. Recovered by the body part behind it -- but only across a gap when the last digit is `1`, since a dropped bracket leaves a number that is already right.
+- **A bracket read as a digit inflates the number and duplicates the hit.** `for 64[Torso]` comes back as `for 641 Torso]`, which is both a wrong number and, since other frames read the line whole, a second hit beside the real one. Recovered by the body part behind it -- but only across a gap when the last digit is `1`, since a dropped bracket leaves a number that is already right. When the body part is gone too, the consensus catches it instead: a reading one character longer than a neighbour, the extra one on the end, with no flags after it, folds into that neighbour when the neighbour is read more than twice as often. PaddleOCR repeats such slips (`You hit Zayy for 40l`, three times beside a `40[Left Limb]` read 37) where Windows OCR made them once, so "read once" was no longer the bar -- two of them put one fight 792 damage over.
 - **Reject rather than guess.** A run of 4+ digits is a smear, not a hit — the reading is dropped and the neighbouring frames supply the value. Guessing put a 1200-damage hit in a report.
 - **A flag reading that is all real vocabulary outvotes one that is not.** OCR drops the middle of a run of flags and welds the ends together -- `[Left Limb][Armor Pierced]` becomes `[Left Pierced]` -- and that wreckage reads the same way frame after frame, so it wins a plain majority. It won 12 to 3 on one hit. An unrecognised word is still kept when it is all there is, in case it is a tag the vocabulary lacks.
 - **A spell or a weapon is not a player.** `Ith's Corrupt hit you` with the apostrophe mangled reads the spell as the attacker, putting a DoT called Corrupt in the roster and a second copy of the hit beside the real one. Caught by the log's own grammar: a *thing* of someone's **hit** you, a *person* **hits** you. Without that distinction the looser pattern parsed `bang hits you` as someone called `ba`.

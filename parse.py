@@ -610,20 +610,43 @@ def _settle_amounts(events, visible):
     everything = [e for e in events if nm(e)]
     work = [(rows, rows) for rows in named.values()] + [(loose, everything)]
 
+    # A swallowed bracket gets a second, narrower chance. "Once" was the right
+    # bar while lines were read a handful of times each; PaddleOCR reads them
+    # five and ten times as often, so its slips repeat too. "You hit Zayy for
+    # 40l" -- the bracket read as a letter, which then converts to a 1 -- came
+    # back three times beside a "40[Left Limb]" read thirty-seven, and stood in
+    # the report as a hit for 401. Twice in one fight, putting it 792 over.
+    #
+    # Only the exact shape a bracket leaves qualifies: one character on the END
+    # of the number, and no body part after it, because the bracket that would
+    # have opened one is the character. A real hit carries its [Torso]. And the
+    # number it folds into must be read more than twice as often -- the same
+    # bar as one line read two ways below, for the same reason: two hits that
+    # both happened were on screen together and were read about equally often.
+    BRACKET_RATIO = 2
+
     for rows, company in work:
         counts = Counter(e["amount"] for e in company)
         for e in rows:
-            if counts[e["amount"]] != 1:
+            c = counts[e["amount"]]
+            swallowed = not e.get("flags")
+            if c != 1 and not swallowed:
                 continue
             digits = str(e["amount"])
             best = best_n = None
             for other in company:
                 d = str(other["amount"])
-                if not _one_glyph_off(digits, d):
-                    continue
+                if c == 1:
+                    if not _one_glyph_off(digits, d):
+                        continue
+                    need = 2                      # a strict majority, or nothing
+                else:
+                    if not (len(digits) == len(d) + 1 and digits[:-1] == d):
+                        continue
+                    need = c * BRACKET_RATIO + 1
                 n = counts[other["amount"]]
-                if n <= 1:
-                    continue                      # a strict majority, or nothing
+                if n < need:
+                    continue
                 if abs(other["t"] - e["t"]) > visible:
                     continue                      # too far apart to be one line
                 # Where more than one number could explain it, the one the

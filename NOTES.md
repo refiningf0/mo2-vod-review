@@ -301,6 +301,39 @@ there. Diffed across 17,822 cached OCR lines from seven clips: 621 readings
 newly parsed, none lost, none altered. Incoming damage on that fight went from
 135 to 322, and every other clip came out byte-identical.
 
+**The reader was the bottleneck after all.** Tesseract read exactly what
+Windows OCR read, and that was taken to mean the engine did not matter. It meant
+Tesseract did not. PaddleOCR's PP-OCR models, run locally through RapidOCR on
+ONNX Runtime, were scored against the same four in-game logs -- 109 hits across
+dungeon and outdoor fights. Windows OCR found 103; PaddleOCR found 109 and
+invented none, and every damage total came out exact. Most of the gain is the
+timestamp: it keeps `[hh:mm:ss]` on nearly every line, and the timestamp is
+what tells five identical `hits you for 0[Parry]` apart when the rest of the
+line cannot. It reads the raw crop; every treatment tried under it did the same
+or worse.
+
+Two of its defaults were wrong for this. It checks every line for being upside
+down, and that check was occasionally turning over a line it had read
+correctly -- off, 108 of 109 became 109. And it enlarged each crop 2.6x before
+looking for text; every value down to no enlargement still found all 109, so it
+now stops at 400px on the short side, about half the time. It is still slower
+than Windows OCR -- roughly a minute a clip against forty seconds -- and it
+drops spaces far more (`Youhit`, `[RightLimb]`), which the parser had to learn
+to read through. Its one known weakness is text on sunlit sand.
+
+**And it repeats its mistakes.** A slip Windows OCR made once, PaddleOCR can
+make three or four times, because it reads every line five and ten times as
+often. On one run of one fight it read `You hit Zayy for 40l` -- the bracket as
+a letter, which becomes a 1 -- three times beside a `40[Left Limb]` read 37,
+and did the same to a 39. The rule that folds a bracket back into its number
+only looked at readings seen once, so both stood as hits for 401 and 391, and
+the fight read 792 damage over. The same clip read again came out clean, which
+is how OCR non-determinism looks from the outside. The fold now also takes a
+reading that is its neighbour plus one character on the end with no body part
+behind it, whenever the neighbour was read more than twice as often. Replaying
+that misreading three, five and eight times over into a clean run, it is caught
+every time; across nine real fights it changes nothing.
+
 **Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
 Explorer resolves that differently from a terminal, so the tool worked when run
 by hand and died on `No module named PIL` when a video was dropped on it. It
