@@ -29,6 +29,7 @@ from PIL import Image
 
 from preprocess import prep, plain
 from parse import parse_line, canonical_names, dedupe, is_weapon
+import paddle_ocr
 
 # Every child process below opens a console window of its own unless told not
 # to. Under the console build that went unnoticed -- children inherit the
@@ -431,14 +432,19 @@ def ocr_folder_parallel(folder, n):
 
 
 def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
-        roster=None, min_seen=None, no_path=False, progress=None):
+        roster=None, min_seen=None, no_path=False, progress=None, engine=None):
     """Read a clip and write its events to `out`.
 
     `progress`, if given, is called as progress(stage, done, total) as the run
     moves through it: stage is a short key, and done/total are None where a
     stage cannot count itself. It exists so a window can show what is
     happening; nothing about the reading depends on it.
+
+    `engine` is "paddle" or "windows"; by default PaddleOCR whenever it can
+    load, which in the packaged app is always. See paddle_ocr.py for why.
     """
+    if engine is None:
+        engine = "paddle" if paddle_ocr.available() else "windows"
     def say(stage, done=None, total=None):
         if progress:
             progress(stage, done, total)
@@ -476,30 +482,41 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
         if verbose:
             print("frames  %d extracted\n" % len(frames))
 
-        if verbose:
-            print("preprocessing...")
-        jobs = [(os.path.join(tmp, fn), os.path.join(prepdirs[i], fn), i)
-                for i in range(len(TREATMENTS)) for fn in frames]
         at = {fn: _frame_time(fn, fps_f) for fn in frames}
-        nw = _workers()
-        with ProcessPoolExecutor(max_workers=nw) as pool:
-            # Iterated rather than collected in one go, so the count can be
-            # reported as it climbs. Results still arrive in order.
-            done = []
-            for n, r in enumerate(pool.map(_prep_one, jobs, chunksize=4), 1):
-                done.append(r)
-                say("preprocess", n, len(jobs))
-        # One entry per frame, whichever treatments managed it.
-        ok = {fn for fn in done if fn}
-        ready = [(fn, at[fn]) for fn in frames if fn in ok]
+        if engine == "paddle":
+            # Reads the raw crop: nothing to preprocess. One pass, so the
+            # list below holds one set of pages, as a single treatment would.
+            ready = [(fn, at[fn]) for fn in frames]
+            if verbose:
+                print("reading %d frames with PaddleOCR across %d workers..."
+                      % (len(ready), paddle_ocr.workers()))
+            say("ocr", 0, len(ready))
+            reads = [paddle_ocr.read_frames(
+                tmp, frames, progress=lambda n: say("ocr", n, len(ready)))]
+        else:
+            if verbose:
+                print("preprocessing...")
+            jobs = [(os.path.join(tmp, fn), os.path.join(prepdirs[i], fn), i)
+                    for i in range(len(TREATMENTS)) for fn in frames]
+            nw = _workers()
+            with ProcessPoolExecutor(max_workers=nw) as pool:
+                # Iterated rather than collected in one go, so the count can be
+                # reported as it climbs. Results still arrive in order.
+                done = []
+                for n, r in enumerate(pool.map(_prep_one, jobs, chunksize=4), 1):
+                    done.append(r)
+                    say("preprocess", n, len(jobs))
+            # One entry per frame, whichever treatments managed it.
+            ok = {fn for fn in done if fn}
+            ready = [(fn, at[fn]) for fn in frames if fn in ok]
 
-        if verbose:
-            print("reading %d frames across %d workers..."
-                  % (len(ready), _ocr_workers()))
-        # Each worker hands back its whole slice when it finishes, so this
-        # stage can say it is running but not how far along it is.
-        say("ocr", None, len(ready) * len(TREATMENTS))
-        reads = [ocr_folder_parallel(d, _ocr_workers()) for d in prepdirs]
+            if verbose:
+                print("reading %d frames with Windows OCR across %d workers..."
+                      % (len(ready), _ocr_workers()))
+            # Each worker hands back its whole slice when it finishes, so this
+            # stage can say it is running but not how far along it is.
+            say("ocr", None, len(ready) * len(TREATMENTS))
+            reads = [ocr_folder_parallel(d, _ocr_workers()) for d in prepdirs]
 
         say("parse")
         raw_events, lines_seen = [], 0
@@ -691,11 +708,13 @@ def main():
     ap.add_argument("--players", help="comma-separated real player names; improves accuracy a lot")
     ap.add_argument("--no-path", action="store_true",
                     help="leave the video's location out of the report")
+    ap.add_argument("--engine", choices=("paddle", "windows"), default=None,
+                    help="OCR engine (default: paddle when installed, else windows)")
     a = ap.parse_args()
     crop = tuple(int(v) for v in a.crop.split(",")) if a.crop else None
     roster = [p.strip() for p in a.players.split(',')] if a.players else None
     run(a.video, fps=a.fps, crop=crop, out=a.out, keep=a.keep_frames,
-        roster=roster, min_seen=a.min_seen, no_path=a.no_path)
+        roster=roster, min_seen=a.min_seen, no_path=a.no_path, engine=a.engine)
 
 
 if __name__ == "__main__":

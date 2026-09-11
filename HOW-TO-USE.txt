@@ -43,8 +43,9 @@ signed.
 
 WINDOWS ONLY
 ------------
-The text recognition uses the engine built into Windows, which is why there is
-nothing to install. It will not run on a Mac or on Linux.
+The app is built for Windows and will not run on a Mac or on Linux. The text
+recognition runs on your own computer and comes inside this folder, so there is
+nothing to install and nothing is sent anywhere.
 
 WHAT TO EXPECT
 --------------

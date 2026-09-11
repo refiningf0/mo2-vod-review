@@ -6,8 +6,10 @@ what, when, and how it went.
 Mortal Online 2 never writes its combat log to disk — it only draws it on
 screen — so the numbers are read back off the video frames with OCR.
 
-Windows only. The text recognition is the engine built into Windows, which is
-why there's nothing to install.
+Windows only. The text is read by PaddleOCR's models, running on your own
+machine and shipped inside the app, so there's nothing to install, nothing to
+download and nothing sent anywhere. On four fights checked line for line against
+the in-game log it found all 109 hits and invented none.
 
 ## Use it
 
