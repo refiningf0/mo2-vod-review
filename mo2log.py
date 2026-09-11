@@ -647,6 +647,9 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
             source_path=(None if no_path else os.path.abspath(video)),
             duration=round(dur, 1),
             fps_sampled=fps_f,
+            # Which reader produced this. The Windows fallback is silent by
+            # design, so without this a report cannot say which one it got.
+            ocr=engine,
             frames=len(frames),
             ocr_lines=lines_seen,
             players=names,
