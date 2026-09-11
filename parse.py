@@ -90,8 +90,13 @@ RE_HEAL_OUT2 = re.compile(r"\b" + YOU + r"\s+" + HEAL + r"\s+" + NAME + SEP +
 RE_OUT_ABIL = re.compile(r"\byour\s*" + SPELL + r"\s*" + HIT + SEP + NAME +
                          SEP + FOR + SEP + AMT_TOK, re.I)
 
-RE_OUT = re.compile(r"\b" + YOU + r"\s+" + HIT + SEP + NAME + SEP + FOR + SEP + AMT_TOK, re.I)
-RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s+" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
+# The space after "You" and the one before an ability's "hit" drop out as
+# freely as the rest: "Youhit Soowonfor 61[Torso]", "Thunderlashhit you for
+# 44". Both words are fixed text, so nothing can be swallowed by letting the
+# gap close -- "you" is followed by "hit" in no other line the log prints, and
+# the possessive in front of an ability is still required.
+RE_OUT = re.compile(r"\b" + YOU + r"\s*" + HIT + SEP + NAME + SEP + FOR + SEP + AMT_TOK, re.I)
+RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s*" + HIT + r"s?" + SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 # The space in front of "hits" goes the same way the one in front of "for"
 # does, and just as often: "CTOUKhits you for 24[Torso]" came back 31 times on
 # one clip and parsed none of them, so that player and every hit they landed
