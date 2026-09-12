@@ -355,6 +355,33 @@ DERKKK, and every one of the eight lines in that frame now appears at the right
 second. Nine unmerged fights came out identical, and a merged clip whose parts
 were recorded back to back was untouched.
 
+**Creatures do not hit you, they bite you.** The incoming pattern knew one
+verb. Mobs use their own -- `Terror Bird bites you for 5[Torso]`, `Ak Yaban
+Flayer slashes you`, `mauls`, `slices` -- so every mob attack ever recorded was
+thrown away: 139 readings of `bites` across nine fights, and one terror-bird
+fight understating what it took by 72 damage over thirteen attacks. The verbs
+are listed rather than matched as any word ending in "s", because `Karyna's
+Lesser Heal heals you for 24` is the same shape and is not damage. The log also
+grades the blow -- `deeply bites` -- and without somewhere to put the adverb
+the name absorbed it, so `TerrorBirddeeply` turned up as a player. A name
+ending in "ly" is safe: the adverb needs the space in front of it.
+
+This hid behind a ground truth that did not cover it. The dungeon clip has
+`slashes` lines at 20:16:02, and the window transcribed from the in-game log
+started at 20:17:17. Scoring 47 of 47 on that clip said nothing about a whole
+class of line sitting just outside the window.
+
+**An unknown flag is not a misreading of a shorter one.** `[Overhead]` contains
+`Head` whole and scored 0.67 against a 0.66 bar, so an overhead swing was filed
+as a hit to the head -- a real body part, in a real report, from a tag that
+never said it. What separates them is shape: a misreading loses or swaps
+letters, as `Pany` does for `Parry`, and does not keep the whole word and add
+three more to the front. Tags found in reports that the vocabulary had never
+met -- `Underhew`, `Sling Thrust`, `Piercing Shot`, `Resist`, `Mind` -- are in
+it now. The report keeps a second list of which tags are weapon abilities, and
+that one has to learn them too, or they parse correctly and are still not
+counted.
+
 **Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
 Explorer resolves that differently from a terminal, so the tool worked when run
 by hand and died on `No module named PIL` when a video was dropped on it. It

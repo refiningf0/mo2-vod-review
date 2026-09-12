@@ -104,7 +104,26 @@ RE_IN_ABIL = re.compile(NAME + POSS + r"([A-Za-z]{2,18})\s*" + HIT + r"s?" + SEP
 # lose its own tail as before; where it does not, the whole word has to be
 # there -- otherwise the name simply swallows it and every attacker in the log
 # ends up called something ending in "hits".
-RE_IN = re.compile(NAME + r"(?:\s+" + HITS + r"?|" + HITS + r")" +
+# Creatures do not hit you: each has its own verb. "Terror Bird bites you for
+# 5[Torso]", "Ak Yaban Flayer slashes you for 0[Parry]". The line is otherwise
+# shaped exactly like a player's, so only the verb had to be taught -- without
+# it every mob attack in a clip was thrown away, 139 readings of "bites" alone
+# across nine fights, and a terror bird fight lost most of its incoming damage.
+# Listed rather than matched as any word ending in s, because "X heals you for
+# 24" is the same shape and is not damage.
+MOB_VERBS = ("bites", "slashes", "mauls", "slices", "claws", "stings", "gores",
+             "pecks", "kicks", "stomps", "crushes", "smashes", "strikes",
+             "swipes", "rams", "charges", "tramples", "rips", "tears",
+             "punches", "headbutts", "lashes", "chomps", "bashes", "stabs")
+MOB = r"(?:" + "|".join(MOB_VERBS) + r")"
+
+# The log grades a creature's attack with an adverb: "Terror Bird deeply bites
+# you for 31[Torso]". Left out of the pattern the name simply swallowed it,
+# and "TerrorBirddeeply" joined the roster as a player of its own.
+ADVERB = r"(?:\s+[A-Za-z]{3,12}ly)?"
+
+RE_IN = re.compile(NAME + ADVERB + r"(?:\s+(?:" + HITS + r"?|" + MOB + r")|(?:" +
+                   HITS + r"|" + MOB + r"))" +
                    SEP + YOU + SEP + FOR + SEP + AMT_TOK, re.I)
 # "Ith's Corrupt hit you", but with the possessive damaged. OCR loses the
 # apostrophe or the s after it -- "Ith'? Corrupt", "Itys Corrupt" -- and the
@@ -196,6 +215,10 @@ FLAG_WORDS = (
     "Parry", "Blocked", "Handle", "Equipment", "Impale", "Sting",
     "Armor Pierced", "Counter Reduced", "Spread Shot", "Forceful Strike",
     "Off-Hand", "Snap Shot", "Hack",
+    # Seen in real reports as words this list did not know, so every one of
+    # them was a tag the report could not count and a near-miss away from
+    # being read as something else.
+    "Underhew", "Sling Thrust", "Piercing Shot", "Resist", "Mind",
 )
 FLAG_BY_NORM = {_norm(f): f for f in FLAG_WORDS}
 FLAG_SET = set(FLAG_WORDS)
@@ -241,6 +264,13 @@ def read_flags(body):
             # bracket on a damage line, which is where flags live and where
             # a channel only ever turns up by accident.
             m = difflib.get_close_matches(n, FLAG_KEYS, n=1, cutoff=0.66)
+            # A flag that CONTAINS a shorter one whole is a different word,
+            # not a misreading of it: "Overhead" holds "Head" and scored 0.67,
+            # just over the bar, so an overhead swing was filed as a hit to the
+            # head. A misreading loses or swaps letters -- "Pany" for "Parry"
+            # -- it does not keep the whole word and add three more.
+            if m and len(n) - len(m[0]) >= 2 and m[0] in n:
+                m = []
             if m:
                 hit = FLAG_BY_NORM[m[0]]
             elif difflib.get_close_matches(n, CHANNEL_KEYS, n=1, cutoff=0.7):
@@ -588,10 +618,18 @@ def align_clocks(events):
     its own: a misread timestamp is one wild estimate, and within a single
     recording stray ones sit as much as a minute off the rest. Those are
     absorbed by the nearest real group, which is what they got before.
+
+    And the clock wraps. A fight that runs through midnight has `23:59:58`
+    followed by `00:00:01`, which reads as jumping a day backwards: on that
+    same 4v8 the first recording crossed midnight a minute before it ended, so
+    the last minute of it went missing even once the parts were separated. Each
+    estimate is therefore moved onto the same day as the rest before anything
+    is grouped, and the line is moved with it.
     """
     # How far apart two estimates must be to come from different recordings.
     # Within one, the middle 80% of estimates sit inside a second of each
     # other on every clip measured.
+    DAY = 86400.0
     APART = 30.0
     # And a recording has to account for this much of the file to be believed.
     SHARE = 0.10
@@ -607,9 +645,15 @@ def align_clocks(events):
     if not first:
         return events
 
+    # Every estimate onto one day. A line from after midnight is a day short
+    # of the ones before it, so it is put back on their day -- and it stays
+    # there, since the clip ran on through midnight and so did the video.
+    raw = [(key[0] - ft, key) for key, ft in first.items()]
+    middle = sorted(o for o, _ in raw)[len(raw) // 2]
     # Sorted on the estimate alone: two keys holding the same estimate must
     # never be compared to each other, since a name OCR lost is None.
-    pairs = sorted(((key[0] - ft, key) for key, ft in first.items()),
+    pairs = sorted(((o + round((middle - o) / DAY) * DAY,
+                     round((middle - o) / DAY), key) for o, key in raw),
                    key=lambda p: p[0])
     groups, run = [], [pairs[0]]
     for prev, cur in zip(pairs, pairs[1:]):
@@ -624,16 +668,17 @@ def align_clocks(events):
     centres = [g[len(g) // 2][0] for g in real]
 
     shift_for = {}
-    for off, key in pairs:
-        shift_for[key] = min(centres, key=lambda c: abs(c - off))
+    for off, day, key in pairs:
+        shift_for[key] = (day, min(centres, key=lambda c: abs(c - off)))
 
-    fallback = centres[len(centres) // 2]
+    fallback = (0, centres[len(centres) // 2])
     for e in events:
         if not e["exact"]:
             continue
         key = (e["t"], e["dir"], e["amount"],
                e["who"] if e["dir"] == "in" else e["target"])
-        e["t"] = round(e["t"] - shift_for.get(key, fallback), 1)
+        day, centre = shift_for.get(key, fallback)
+        e["t"] = round(e["t"] + day * DAY - centre, 1)
     return events
 
 
