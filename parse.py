@@ -561,6 +561,82 @@ def canonical_names(events, roster=None, cutoff=0.55, anchor_min=3):
     return anchors
 
 
+def align_clocks(events):
+    """Put timestamped readings onto the clip's own clock.
+
+    Lines whose [hh:mm:ss] OCR recovered are anchored to the wall clock; the
+    rest already carry their frame time. The two differ by a constant -- when
+    the recording started -- and each timestamped line gives one estimate of
+    it. But a line stays on screen for seconds and is read from every frame in
+    that span, all carrying the same [hh:mm:ss]. Only its FIRST sighting marks
+    when it appeared; the later ones say the clip started progressively earlier
+    than it did. Averaging over all readings pulls the estimate about half a
+    window late and floats every timestamped hit past the untimed ones around
+    it. So each line is collapsed to its earliest sighting first.
+
+    The constant is only constant within one recording. A merged clip holds
+    several, and the gap between them is however long the player went without
+    hitting record: on one 4v8 the parts were 33 minutes apart, and crossed
+    midnight besides. Taking the median across the whole file then picks
+    whichever part is longest and flings every event from the others thousands
+    of seconds outside the clip, where the range check deletes them. That clip
+    lost its entire first two minutes -- eight hits on screen at once, two
+    players who appear nowhere in the report.
+
+    So the estimates are grouped, and each line is shifted by its own group.
+    A group has to hold a real share of the lines to count as a recording of
+    its own: a misread timestamp is one wild estimate, and within a single
+    recording stray ones sit as much as a minute off the rest. Those are
+    absorbed by the nearest real group, which is what they got before.
+    """
+    # How far apart two estimates must be to come from different recordings.
+    # Within one, the middle 80% of estimates sit inside a second of each
+    # other on every clip measured.
+    APART = 30.0
+    # And a recording has to account for this much of the file to be believed.
+    SHARE = 0.10
+
+    first = {}
+    for e in events:
+        if not e["exact"] or e.get("ft") is None:
+            continue
+        key = (e["t"], e["dir"], e["amount"],
+               e["who"] if e["dir"] == "in" else e["target"])
+        if key not in first or e["ft"] < first[key]:
+            first[key] = e["ft"]
+    if not first:
+        return events
+
+    # Sorted on the estimate alone: two keys holding the same estimate must
+    # never be compared to each other, since a name OCR lost is None.
+    pairs = sorted(((key[0] - ft, key) for key, ft in first.items()),
+                   key=lambda p: p[0])
+    groups, run = [], [pairs[0]]
+    for prev, cur in zip(pairs, pairs[1:]):
+        if cur[0] - prev[0] > APART:
+            groups.append(run)
+            run = []
+        run.append(cur)
+    groups.append(run)
+
+    need = max(3, int(len(pairs) * SHARE))
+    real = [g for g in groups if len(g) >= need] or [max(groups, key=len)]
+    centres = [g[len(g) // 2][0] for g in real]
+
+    shift_for = {}
+    for off, key in pairs:
+        shift_for[key] = min(centres, key=lambda c: abs(c - off))
+
+    fallback = centres[len(centres) // 2]
+    for e in events:
+        if not e["exact"]:
+            continue
+        key = (e["t"], e["dir"], e["amount"],
+               e["who"] if e["dir"] == "in" else e["target"])
+        e["t"] = round(e["t"] - shift_for.get(key, fallback), 1)
+    return events
+
+
 def _settle_amounts(events, visible):
     """Put right the numbers that only one frame agrees with.
 

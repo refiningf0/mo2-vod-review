@@ -28,7 +28,8 @@ from concurrent.futures import ProcessPoolExecutor
 from PIL import Image
 
 from preprocess import prep, plain
-from parse import parse_line, canonical_names, dedupe, is_weapon
+from parse import (parse_line, canonical_names, dedupe, is_weapon,
+                   align_clocks)
 import paddle_ocr
 
 # Every child process below opens a console window of its own unless told not
@@ -541,35 +542,9 @@ def run(video, fps=2.0, crop=None, out="events.json", keep=False, verbose=True,
 
         anchors = canonical_names(raw_events, roster=roster)
 
-        # Put both kinds of event on one clock before deduping. Lines whose
-        # timestamp OCR recovered are anchored to the wall clock; the rest
-        # already carry their frame time. Shifting the wall clock so its first
-        # event lines up with that same event's frame time reconciles them.
-        # Wall clock and frame clock differ by a constant -- when the recording
-        # started -- and each timestamped line gives one estimate of it. But a
-        # line stays on screen for seconds and is read from every frame in that
-        # span, all carrying the same [hh:mm:ss]. Only its FIRST sighting marks
-        # when it actually appeared; the later ones say the clip started
-        # progressively earlier than it did. Averaging over all readings pulls
-        # the estimate about half a window late and floats every timestamped
-        # hit past the untimed ones around it.
-        #
-        # So collapse each line to its earliest sighting first, then take the
-        # median across lines so one misread timestamp cannot skew the result.
-        first = {}
-        for e in raw_events:
-            if not e["exact"] or e.get("ft") is None:
-                continue
-            key = (e["t"], e["dir"], e["amount"],
-                   e["who"] if e["dir"] == "in" else e["target"])
-            if key not in first or e["ft"] < first[key]:
-                first[key] = e["ft"]
-        offsets = sorted(t - ft for (t, _, _, _), ft in first.items())
-        if offsets:
-            shift = offsets[len(offsets) // 2]
-            for e in raw_events:
-                if e["exact"]:
-                    e["t"] = round(e["t"] - shift, 1)
+        # Wall-clock lines and frame-timed ones onto one clock. Merged clips
+        # hold more than one recording, so this is per recording, not per file.
+        align_clocks(raw_events)
 
         events = dedupe(raw_events)
         events = [e for e in events if 0 <= e["t"] <= max(dur, 1) + 5]

@@ -334,6 +334,27 @@ behind it, whenever the neighbour was read more than twice as often. Replaying
 that misreading three, five and eight times over into a clean run, it is caught
 every time; across nine real fights it changes nothing.
 
+**A merged clip has more than one clock.** The log's `[hh:mm:ss]` and the
+video's own timeline differ by a constant -- when the recording started -- and
+every timestamped line gives one estimate of it. That holds inside a single
+recording. Join two together and there are two constants, separated by however
+long the player went without recording: on one 4v8 the parts were 33 minutes
+apart, and crossed midnight besides. The median across the whole file then
+picks whichever part is longest and flings every event from the others
+thousands of seconds outside the clip, where the range check quietly deletes
+them. That report opened with two silent minutes, while the frame at forty
+seconds had eight hits on screen and two players who appeared nowhere in it.
+
+The estimates are now grouped and each line shifted by its own group. The bar
+for being a separate recording is 10% of the lines, not merely a gap: within
+one recording stray estimates sit as much as a minute from the rest -- a
+misread timestamp, or a line whose first sighting came late -- and those have
+to be absorbed by the nearest real group, which is what they got before. The
+4v8 went from 70 events to 127, recovering POWERSTROKE, OBESOdeBOSTA and
+DERKKK, and every one of the eight lines in that frame now appears at the right
+second. Nine unmerged fights came out identical, and a merged clip whose parts
+were recorded back to back was untouched.
+
 **Two Pythons, one launcher.** The .bat said `python` and trusted PATH.
 Explorer resolves that differently from a terminal, so the tool worked when run
 by hand and died on `No module named PIL` when a video was dropped on it. It
